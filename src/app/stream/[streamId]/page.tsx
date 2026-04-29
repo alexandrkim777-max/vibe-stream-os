@@ -32,7 +32,7 @@ export default function StreamPage() {
   const localTracksRef = useRef<any[]>([]);
 
   const appId = "cfc713c943fc449181f2bd2b9699aa27";
-  const token = "007eJxTYJhdnvXKje1j5/E2vu/CSRqciaczIlefW/N4O2e18ponbbYKDMlpyeaGxsmWJsZpySYmloYWhmlGSSlGSZZmlpaJiUbmi2Z9yGwIZGTo7nrCzMgAgSA+B0NxSVFqYq6uIQMDAAZJIgI=";
+  const token = "007eJxTYEgMv7g1YsWJZP3lbyvefvkRplj7bbH0yeDyixdsn67xrPqhwJCclmxuaJxsaWKclmxiYmloYZhmlJRilGRpZmmZmGhknvTpY2ZDICNDioghIyMDBIL43AxhmUmpwSVFqYn+xQwMAF6+JUE=";
 
   const joinStream = async () => {
     setIsLoading(true);
