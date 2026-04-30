@@ -45,7 +45,7 @@ function Sparkles() {
         dx: (Math.random() - 0.5) * 0.25,
         dy: (Math.random() - 0.5) * 0.25,
         pulse: Math.random() * Math.PI * 2,
-        color: ["167,139,250", "99,102,241", "236,72,153", "14,165,233"][Math.floor(Math.random() * 4)],
+        color: ["167,139,250","99,102,241","236,72,153","14,165,233"][Math.floor(Math.random()*4)],
       });
     }
     let animId: number;
@@ -139,7 +139,7 @@ function StreamCard({ stream }: { stream: any }) {
           <div className="absolute bottom-3 right-3 flex items-center gap-1.5 px-2.5 py-1 rounded-full"
             style={{background:"rgba(0,0,0,0.7)",border:"1px solid rgba(255,255,255,0.08)"}}>
             <Users size={10} className="text-white/60" />
-            <span className="text-white/80 text-xs font-semibold">{stream.viewer_count.toLocaleString()}</span>
+            <span className="text-white/80 text-xs font-semibold">{stream.viewer_count?.toLocaleString()}</span>
           </div>
           {stream.viewer_count > 400 && (
             <div className="absolute top-3 right-3 flex items-center gap-1 px-2 py-1 rounded-full"
@@ -159,7 +159,7 @@ function StreamCard({ stream }: { stream: any }) {
             <div className="flex items-center gap-1.5">
               <div className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white"
                 style={{background:`linear-gradient(135deg,${district.color},${district.color}99)`}}>
-                {stream.host_name[0]}
+                {stream.host_name?.[0]}
               </div>
               <span className="text-white/30 text-xs">{stream.host_name}</span>
             </div>
@@ -267,12 +267,23 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [streamTitle, setStreamTitle] = useState("");
   const [streamDistrict, setStreamDistrict] = useState("gaming");
+  const [isCreatingStream, setIsCreatingStream] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [authLoading, setAuthLoading] = useState(true);
 
   useEffect(() => {
     checkAuth();
     fetchStreams();
+
+    // Realtime updates for streams
+    const channel = supabase
+      .channel("streams-realtime")
+      .on("postgres_changes", {
+        event: "*", schema: "public", table: "streams"
+      }, () => fetchStreams())
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
   const checkAuth = async () => {
@@ -286,7 +297,10 @@ export default function HomePage() {
   };
 
   const fetchStreams = async () => {
-    const { data } = await supabase.from("streams").select("*").eq("status", "live").order("created_at", { ascending: false });
+    const { data } = await supabase
+      .from("streams").select("*")
+      .eq("status", "live")
+      .order("created_at", { ascending: false });
     if (data) setStreams(data);
     setLoading(false);
   };
@@ -296,6 +310,33 @@ export default function HomePage() {
     router.push("/auth");
   };
 
+  const handleGoLive = async () => {
+    if (!streamTitle.trim()) {
+      alert("Please enter a stream title!");
+      return;
+    }
+    setIsCreatingStream(true);
+    try {
+      const hostName = user?.user_metadata?.username || user?.email?.split("@")[0] || "Creator";
+      const { data, error } = await supabase.from("streams").insert({
+        title: streamTitle,
+        district: streamDistrict,
+        host_name: hostName,
+        status: "live",
+        viewer_count: 0,
+      }).select().single();
+
+      if (error) throw error;
+
+      setShowGoLive(false);
+      setStreamTitle("");
+      router.push(`/stream/${data.id}?host=true`);
+    } catch (e: any) {
+      alert(`Error: ${e.message}`);
+    }
+    setIsCreatingStream(false);
+  };
+
   const filteredStreams = activeDistrict === "all" ? streams : streams.filter(s => s.district === activeDistrict);
   const activeD = DISTRICTS.find(d => d.id === activeDistrict) || DISTRICTS[0];
   const ActiveIcon = activeD.icon;
@@ -303,8 +344,14 @@ export default function HomePage() {
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{background:"#060614"}}>
-        <div className="w-10 h-10 rounded-full border-2 animate-spin"
-          style={{borderColor:"rgba(124,58,237,0.2)",borderTopColor:"#7c3aed"}} />
+        <div className="text-center">
+          <div className="w-16 h-16 rounded-3xl flex items-center justify-center mx-auto mb-4"
+            style={{background:"linear-gradient(135deg,#7c3aed,#4f46e5)",boxShadow:"0 8px 32px rgba(124,58,237,0.4)"}}>
+            <Zap size={28} className="text-white" />
+          </div>
+          <div className="w-8 h-8 rounded-full border-2 mx-auto animate-spin"
+            style={{borderColor:"rgba(124,58,237,0.2)",borderTopColor:"#7c3aed"}} />
+        </div>
       </div>
     );
   }
@@ -323,7 +370,6 @@ export default function HomePage() {
         .liquid-btn:active{transform:scale(0.97)}
       `}</style>
 
-      {/* Background */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
         <div className="absolute -top-60 -left-60 w-[700px] h-[700px] rounded-full opacity-20"
           style={{background:"radial-gradient(circle,#7c3aed,transparent)",filter:"blur(80px)"}} />
@@ -333,7 +379,6 @@ export default function HomePage() {
         <Sparkles />
       </div>
 
-      {/* Navbar */}
       <nav className="relative z-10 flex items-center justify-between px-6 py-4"
         style={{borderBottom:"1px solid rgba(124,58,237,0.2)",backdropFilter:"blur(20px)",background:"rgba(6,6,20,0.9)"}}>
         <div className="flex items-center gap-3">
@@ -364,8 +409,6 @@ export default function HomePage() {
             <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full"
               style={{background:"linear-gradient(135deg,#ef4444,#dc2626)"}} />
           </button>
-
-          {/* User avatar */}
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-2xl"
             style={{background:"rgba(124,58,237,0.1)",border:"1px solid rgba(124,58,237,0.2)"}}>
             <div className="w-7 h-7 rounded-xl flex items-center justify-center text-xs font-black text-white"
@@ -376,7 +419,6 @@ export default function HomePage() {
               {user?.user_metadata?.username || user?.email?.split("@")[0] || "User"}
             </span>
           </div>
-
           <button onClick={() => setChatOpen(!chatOpen)}
             className="p-2.5 rounded-2xl transition-all hover:scale-110"
             style={chatOpen
@@ -384,7 +426,6 @@ export default function HomePage() {
               : {background:"rgba(124,58,237,0.1)",border:"1px solid rgba(124,58,237,0.2)"}}>
             <MessageSquare size={16} className={chatOpen ? "text-white" : "text-violet-400/70"} />
           </button>
-
           <button onClick={handleSignOut}
             className="p-2.5 rounded-2xl transition-all hover:scale-110"
             style={{background:"rgba(239,68,68,0.1)",border:"1px solid rgba(239,68,68,0.2)"}}>
@@ -395,8 +436,6 @@ export default function HomePage() {
 
       <div className="relative z-10 flex flex-1 overflow-hidden">
         <main className="flex-1 overflow-y-auto scrollbar-none px-6 py-6">
-
-          {/* Districts */}
           <div className="flex gap-2 mb-8 overflow-x-auto scrollbar-none pb-1">
             {DISTRICTS.map((d) => {
               const Icon = d.icon;
@@ -420,7 +459,6 @@ export default function HomePage() {
             })}
           </div>
 
-          {/* Hero */}
           <div className="relative rounded-[28px] overflow-hidden mb-8 p-8 flex items-center justify-between"
             style={{
               background:`linear-gradient(135deg, ${activeD.color}20 0%, rgba(79,70,229,0.1) 60%, rgba(6,6,20,0.95) 100%)`,
@@ -453,7 +491,6 @@ export default function HomePage() {
             </button>
           </div>
 
-          {/* Live Now */}
           <div className="flex items-center justify-between mb-5">
             <div className="flex items-center gap-3">
               <div className="relative">
@@ -500,7 +537,6 @@ export default function HomePage() {
         {chatOpen && <ChatSidebar onClose={() => setChatOpen(false)} />}
       </div>
 
-      {/* Go Live Modal */}
       {showGoLive && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
           style={{background:"rgba(0,0,0,0.88)",backdropFilter:"blur(20px)"}}
@@ -512,7 +548,7 @@ export default function HomePage() {
             <div className="flex items-center justify-between mb-6">
               <div>
                 <h3 className="text-white font-black text-xl">Start Streaming</h3>
-                <p className="text-violet-400/40 text-xs mt-0.5">Go live in seconds</p>
+                <p className="text-violet-400/40 text-xs mt-0.5">Go live in seconds ⚡</p>
               </div>
               <button onClick={() => setShowGoLive(false)}
                 className="w-9 h-9 flex items-center justify-center rounded-2xl text-white/30 hover:text-white liquid-btn"
@@ -524,7 +560,8 @@ export default function HomePage() {
               <input value={streamTitle} onChange={(e) => setStreamTitle(e.target.value)}
                 placeholder="What is your stream about?"
                 className="w-full rounded-2xl px-4 py-3 text-white text-sm placeholder-violet-400/20 outline-none"
-                style={{background:"rgba(124,58,237,0.08)",border:"1px solid rgba(124,58,237,0.2)"}} />
+                style={{background:"rgba(124,58,237,0.08)",border:"1px solid rgba(124,58,237,0.2)"}}
+                onKeyDown={(e) => e.key === "Enter" && handleGoLive()} />
               <div className="grid grid-cols-2 gap-2">
                 {DISTRICTS.filter(d => d.id !== "all").map((d) => {
                   const Icon = d.icon;
@@ -536,6 +573,7 @@ export default function HomePage() {
                         background:`${d.color}20`,
                         border:`1px solid ${d.color}50`,
                         color:d.color,
+                        boxShadow:`0 4px 12px ${d.glow}30`
                       } : {
                         background:"rgba(255,255,255,0.03)",
                         border:"1px solid rgba(255,255,255,0.07)",
@@ -546,19 +584,14 @@ export default function HomePage() {
                   );
                 })}
               </div>
-              <div className="flex gap-2">
-                <button className="flex-1 flex items-center justify-center gap-2 rounded-2xl py-3 text-sm font-semibold liquid-btn"
-                  style={{background:"rgba(124,58,237,0.08)",border:"1px solid rgba(124,58,237,0.2)",color:"rgba(167,139,250,0.7)"}}>
-                  <Mic size={14} />Audio Only
-                </button>
-                <button className="flex-1 flex items-center justify-center gap-2 rounded-2xl py-3 text-sm font-semibold liquid-btn"
-                  style={{background:"rgba(124,58,237,0.08)",border:"1px solid rgba(124,58,237,0.2)",color:"rgba(167,139,250,0.7)"}}>
-                  <Video size={14} />With Video
-                </button>
-              </div>
-              <button className="w-full text-white font-black py-4 rounded-2xl flex items-center justify-center gap-2.5 text-base liquid-btn neon-pulse"
+              <button onClick={handleGoLive} disabled={isCreatingStream}
+                className="w-full text-white font-black py-4 rounded-2xl flex items-center justify-center gap-2.5 text-base liquid-btn neon-pulse disabled:opacity-50"
                 style={{background:"linear-gradient(135deg,#7c3aed,#4f46e5)",boxShadow:"0 8px 32px rgba(124,58,237,0.4)"}}>
-                <Radio size={18} />Start Streaming Now
+                {isCreatingStream ? (
+                  <span className="w-5 h-5 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                ) : (
+                  <><Radio size={18} />Start Streaming Now</>
+                )}
               </button>
             </div>
           </div>
