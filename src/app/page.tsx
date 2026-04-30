@@ -1,60 +1,74 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { 
-  Radio, MapPin, Users, Zap, MessageSquare, Bell, 
-  Search, ChevronRight, Mic, Video, X, Send, Phone
-} from "lucide-react";
+import { createClient } from "@supabase/supabase-js";
+import { Radio, Users, Zap, MessageSquare, Bell, Search, Mic, Video, X, Send, Phone, MapPin, Gamepad2, Plane, Briefcase, BookOpen, Palette, Baby } from "lucide-react";
 
-const DISTRICTS = ["Чиланзар", "Юнусабад", "Мирзо-Улугбек", "Яккасарой", "Сергели"];
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
-const LIVE_STREAMS = [
-  { id: "1", host: "Азиз К.", district: "Чиланзар", title: "Вечерний разговор о районе", viewers: 312, avatar: "АК" },
-  { id: "2", host: "Малика Р.", district: "Юнусабад", title: "Новости нашего квартала", viewers: 189, avatar: "МР" },
-  { id: "3", host: "Санжар Б.", district: "Мирзо-Улугбек", title: "Стройка на ул. Навои", viewers: 540, avatar: "СБ" },
+const DISTRICTS = [
+  { id: "all", label: "All Districts", icon: Zap, color: "from-violet-500 to-indigo-500", bg: "bg-violet-500/10" },
+  { id: "gaming", label: "Gamer Zone", icon: Gamepad2, color: "from-green-500 to-emerald-500", bg: "bg-green-500/10" },
+  { id: "travel", label: "Travel Hub", icon: Plane, color: "from-sky-500 to-blue-500", bg: "bg-sky-500/10" },
+  { id: "business", label: "Biz District", icon: Briefcase, color: "from-amber-500 to-orange-500", bg: "bg-amber-500/10" },
+  { id: "education", label: "University", icon: BookOpen, color: "from-violet-500 to-purple-500", bg: "bg-violet-500/10" },
+  { id: "creative", label: "Creative Hub", icon: Palette, color: "from-pink-500 to-rose-500", bg: "bg-pink-500/10" },
+  { id: "kids", label: "Kids Zone", icon: Baby, color: "from-yellow-500 to-amber-500", bg: "bg-yellow-500/10" },
 ];
 
 const MESSAGES = [
-  { id: "1", name: "Камола", text: "Привет! Видела твой стрим вчера", time: "21:04", unread: 2 },
-  { id: "2", name: "Дилшод", text: "Когда следующий эфир?", time: "20:51", unread: 0 },
-  { id: "3", name: "Нилуфар", text: "Можешь позвать меня в эфир?", time: "19:30", unread: 1 },
+  { id: "1", name: "Kamola", text: "Loved your stream yesterday!", time: "9:04 PM", unread: 2 },
+  { id: "2", name: "Dilshod", text: "When is the next live?", time: "8:51 PM", unread: 0 },
+  { id: "3", name: "Nilufar", text: "Can you call me into your stream?", time: "7:30 PM", unread: 1 },
 ];
 
 const CHAT_MESSAGES = [
-  { id: "1", from: "Камола", text: "Привет! Видела твой стрим вчера", mine: false },
-  { id: "2", from: "Я", text: "Спасибо! Рад что понравилось", mine: true },
-  { id: "3", from: "Камола", text: "Когда следующий?", mine: false },
+  { id: "1", from: "Kamola", text: "Loved your stream yesterday!", mine: false },
+  { id: "2", from: "Me", text: "Thanks! Glad you enjoyed it", mine: true },
+  { id: "3", from: "Kamola", text: "When is the next one?", mine: false },
 ];
 
 function LiveBadge() {
   return (
-    <span className="flex items-center gap-1 bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded-full uppercase">
+    <span className="flex items-center gap-1 bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
       <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
       Live
     </span>
   );
 }
 
-function StreamCard({ stream }: { stream: typeof LIVE_STREAMS[0] }) {
+function StreamCard({ stream }: { stream: any }) {
+  const district = DISTRICTS.find(d => d.id === stream.district) || DISTRICTS[1];
+  const Icon = district.icon;
   return (
-    <Link href={`/stream/${stream.id}`} className="block rounded-2xl overflow-hidden border border-white/10 bg-white/5 cursor-pointer hover:border-violet-500/40 hover:scale-105 transition-all duration-200">
-      <div className="relative h-32 bg-gradient-to-br from-violet-900/60 via-indigo-900/40 to-slate-900 flex items-center justify-center">
-        <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center text-white font-bold text-lg border border-white/20">
-          {stream.avatar}
-        </div>
-        <div className="absolute top-2 left-2"><LiveBadge /></div>
-        <div className="absolute bottom-2 right-2 flex items-center gap-1 bg-black/50 rounded-full px-2 py-0.5 text-white text-xs">
-          <Users size={10} />{stream.viewers}
-        </div>
-      </div>
-      <div className="p-3">
-        <p className="text-white/90 text-sm font-medium leading-tight">{stream.title}</p>
-        <div className="flex items-center justify-between mt-2">
-          <div className="flex items-center gap-1 text-white/50 text-xs">
-            <MapPin size={10} />{stream.district}
+    <Link href={`/stream/${stream.id}`} className="block group">
+      <div className="relative rounded-3xl overflow-hidden border border-white/10 bg-white/5 backdrop-blur-sm hover:border-white/20 transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1">
+        <div className={`relative h-40 bg-gradient-to-br ${district.color} opacity-20 absolute inset-0`} />
+        <div className={`relative h-40 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center`}>
+          <div className={`absolute inset-0 bg-gradient-to-br ${district.color} opacity-10`} />
+          <div className="relative z-10 text-center">
+            <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${district.color} flex items-center justify-center mx-auto mb-2 shadow-lg`}>
+              <Icon size={24} className="text-white" />
+            </div>
+            <div className="text-white/60 text-xs">{stream.host_name}</div>
           </div>
-          <span className="text-white/40 text-xs">{stream.host}</span>
+          <div className="absolute top-3 left-3"><LiveBadge /></div>
+          <div className="absolute bottom-3 right-3 flex items-center gap-1 bg-black/60 backdrop-blur rounded-full px-2 py-1 text-white text-xs">
+            <Users size={10} />{stream.viewer_count}
+          </div>
+        </div>
+        <div className="p-4">
+          <p className="text-white/90 text-sm font-semibold leading-tight mb-2">{stream.title}</p>
+          <div className="flex items-center justify-between">
+            <span className={`text-xs px-2 py-0.5 rounded-full bg-gradient-to-r ${district.color} bg-clip-text text-transparent border border-white/10 font-medium`}>
+              {district.label}
+            </span>
+            <span className="text-white/30 text-xs">{stream.host_name}</span>
+          </div>
         </div>
       </div>
     </Link>
@@ -66,34 +80,33 @@ function ChatSidebar({ onClose }: { onClose: () => void }) {
   const [input, setInput] = useState("");
 
   return (
-    <div className="w-72 h-full border-l border-white/10 bg-black/60 backdrop-blur-2xl flex flex-col">
-      <div className="flex items-center justify-between px-4 py-4 border-b border-white/10">
+    <div className="w-80 h-full border-l border-white/8 bg-black/40 backdrop-blur-2xl flex flex-col">
+      <div className="flex items-center justify-between px-5 py-4 border-b border-white/8">
         <div className="flex items-center gap-2">
-          <MessageSquare size={16} className="text-violet-400" />
-          <span className="text-white font-semibold text-sm">Сообщения</span>
+          <MessageSquare size={15} className="text-violet-400" />
+          <span className="text-white font-semibold text-sm">Messages</span>
         </div>
-        <button onClick={onClose} className="text-white/40 hover:text-white">
-          <X size={16} />
+        <button onClick={onClose} className="text-white/30 hover:text-white transition-colors w-6 h-6 flex items-center justify-center rounded-full hover:bg-white/10">
+          <X size={14} />
         </button>
       </div>
-
       {!activeChat ? (
         <div className="flex-1 overflow-y-auto">
           {MESSAGES.map((msg) => (
             <button key={msg.id} onClick={() => setActiveChat(msg.id)}
-              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/5 text-left">
-              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-white text-xs font-bold">
+              className="w-full flex items-center gap-3 px-5 py-3.5 hover:bg-white/5 transition-colors text-left">
+              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
                 {msg.name[0]}
               </div>
               <div className="flex-1 min-w-0">
-                <div className="flex justify-between">
+                <div className="flex justify-between items-center mb-0.5">
                   <span className="text-white/90 text-sm font-medium">{msg.name}</span>
-                  <span className="text-white/30 text-xs">{msg.time}</span>
+                  <span className="text-white/25 text-xs">{msg.time}</span>
                 </div>
-                <p className="text-white/40 text-xs truncate">{msg.text}</p>
+                <p className="text-white/35 text-xs truncate">{msg.text}</p>
               </div>
               {msg.unread > 0 && (
-                <span className="w-4 h-4 rounded-full bg-violet-500 text-white text-xs font-bold flex items-center justify-center">
+                <span className="w-5 h-5 rounded-full bg-violet-500 text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0">
                   {msg.unread}
                 </span>
               )}
@@ -102,30 +115,26 @@ function ChatSidebar({ onClose }: { onClose: () => void }) {
         </div>
       ) : (
         <>
-          <div className="flex items-center gap-2 px-4 py-3 border-b border-white/10">
-            <button onClick={() => setActiveChat(null)} className="text-white/40 hover:text-white">
-              <ChevronRight size={16} className="rotate-180" />
-            </button>
-            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-white text-xs font-bold">К</div>
-            <span className="text-white text-sm font-medium">Камола</span>
-            <button className="ml-auto text-white/40 hover:text-violet-400">
-              <Phone size={14} />
-            </button>
+          <div className="flex items-center gap-3 px-5 py-3 border-b border-white/8">
+            <button onClick={() => setActiveChat(null)} className="text-white/30 hover:text-white">←</button>
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-white text-xs font-bold">K</div>
+            <span className="text-white text-sm font-medium">Kamola</span>
+            <button className="ml-auto text-white/30 hover:text-violet-400"><Phone size={14} /></button>
           </div>
-          <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
+          <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
             {CHAT_MESSAGES.map((m) => (
               <div key={m.id} className={`flex ${m.mine ? "justify-end" : "justify-start"}`}>
-                <div className={`max-w-xs rounded-2xl px-3 py-2 text-sm ${m.mine ? "bg-violet-600 text-white" : "bg-white/10 text-white/90"}`}>
+                <div className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-sm ${m.mine ? "bg-violet-600 text-white rounded-br-sm" : "bg-white/8 text-white/90 rounded-bl-sm"}`}>
                   {m.text}
                 </div>
               </div>
             ))}
           </div>
-          <div className="px-3 py-3 border-t border-white/10">
-            <div className="flex gap-2 bg-white/5 rounded-full px-4 py-2 border border-white/10">
+          <div className="px-4 py-3 border-t border-white/8">
+            <div className="flex gap-2 bg-white/6 rounded-2xl px-4 py-2.5 border border-white/10">
               <input value={input} onChange={(e) => setInput(e.target.value)}
-                placeholder="Написать..." className="flex-1 bg-transparent text-white text-sm outline-none placeholder-white/30" />
-              <button className="text-violet-400"><Send size={14} /></button>
+                placeholder="Write a message..." className="flex-1 bg-transparent text-white text-sm outline-none placeholder-white/25" />
+              <button className="text-violet-400 hover:text-violet-300"><Send size={14} /></button>
             </div>
           </div>
         </>
@@ -136,107 +145,162 @@ function ChatSidebar({ onClose }: { onClose: () => void }) {
 
 export default function HomePage() {
   const [chatOpen, setChatOpen] = useState(false);
-  const [activeDistrict, setActiveDistrict] = useState("Чиланзар");
+  const [activeDistrict, setActiveDistrict] = useState("all");
   const [showGoLive, setShowGoLive] = useState(false);
+  const [streams, setStreams] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [streamTitle, setStreamTitle] = useState("");
+  const [streamDistrict, setStreamDistrict] = useState("gaming");
+
+  useEffect(() => { fetchStreams(); }, []);
+
+  const fetchStreams = async () => {
+    const { data } = await supabase.from("streams").select("*").eq("status", "live").order("created_at", { ascending: false });
+    if (data) setStreams(data);
+    setLoading(false);
+  };
+
+  const filteredStreams = activeDistrict === "all" ? streams : streams.filter(s => s.district === activeDistrict);
+  const activeD = DISTRICTS.find(d => d.id === activeDistrict) || DISTRICTS[0];
 
   return (
-    <div className="min-h-screen bg-[#080812] text-white flex flex-col">
-      <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute -top-40 -left-40 w-96 h-96 rounded-full bg-violet-900/30" style={{filter:"blur(120px)"}} />
-        <div className="absolute top-1/3 -right-20 w-80 h-80 rounded-full bg-indigo-900/25" style={{filter:"blur(100px)"}} />
+    <div className="min-h-screen text-white flex flex-col" style={{background: "radial-gradient(ellipse at top left, #1a0533 0%, #080812 40%, #070714 100%)"}}>
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute -top-60 -left-60 w-[500px] h-[500px] rounded-full" style={{background:"radial-gradient(circle, rgba(124,58,237,0.15) 0%, transparent 70%)"}} />
+        <div className="absolute top-1/2 -right-40 w-96 h-96 rounded-full" style={{background:"radial-gradient(circle, rgba(79,70,229,0.1) 0%, transparent 70%)"}} />
+        <div className="absolute bottom-0 left-1/4 w-80 h-80 rounded-full" style={{background:"radial-gradient(circle, rgba(139,92,246,0.08) 0%, transparent 70%)"}} />
+        <div className="absolute inset-0 opacity-[0.02]" style={{backgroundImage:"linear-gradient(rgba(255,255,255,1) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,1) 1px,transparent 1px)",backgroundSize:"64px 64px"}} />
       </div>
 
-      <nav className="relative z-10 flex items-center justify-between px-6 py-4 border-b border-white/10">
+      <nav className="relative z-10 flex items-center justify-between px-6 py-4 border-b border-white/6 backdrop-blur-md bg-black/20">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center">
-            <Zap size={14} className="text-white" />
+          <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-violet-500/25">
+            <Zap size={16} className="text-white" />
           </div>
-          <span className="font-bold text-white">Vibe City</span>
+          <div>
+            <span className="font-bold text-white text-lg tracking-tight">VibeCity</span>
+          </div>
         </div>
-        <div className="flex items-center gap-2 bg-white/5 rounded-full px-4 py-2 border border-white/10 w-48">
+        <div className="flex items-center gap-2 bg-white/6 rounded-2xl px-4 py-2.5 border border-white/8 w-56 backdrop-blur">
           <Search size={13} className="text-white/30" />
-          <input placeholder="Поиск..." className="bg-transparent text-sm text-white/70 outline-none placeholder-white/25 w-full" />
+          <input placeholder="Search streams..." className="bg-transparent text-sm text-white/70 outline-none placeholder-white/25 w-full" />
         </div>
-        <div className="flex items-center gap-3">
-          <button className="relative p-2 rounded-full hover:bg-white/8">
-            <Bell size={16} className="text-white/60" />
-            <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-violet-500" />
+        <div className="flex items-center gap-2">
+          <button className="relative p-2.5 rounded-2xl hover:bg-white/8 transition-colors">
+            <Bell size={16} className="text-white/50" />
+            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-violet-500" />
           </button>
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-xs font-bold">ВЫ</div>
+          <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-xs font-bold cursor-pointer">YOU</div>
           <button onClick={() => setChatOpen(!chatOpen)}
-            className={`p-2 rounded-full transition-colors ${chatOpen ? "bg-violet-600" : "hover:bg-white/8 text-white/60"}`}>
+            className={`p-2.5 rounded-2xl transition-colors ${chatOpen ? "bg-violet-600 text-white" : "hover:bg-white/8 text-white/50"}`}>
             <MessageSquare size={16} />
           </button>
         </div>
       </nav>
 
-      <div className="relative z-10 flex flex-1">
-        <main className="flex-1 px-6 py-6 overflow-y-auto">
-          <div className="flex gap-2 mb-6 overflow-x-auto pb-1">
-            {DISTRICTS.map((d) => (
-              <button key={d} onClick={() => setActiveDistrict(d)}
-                className={`flex-shrink-0 px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
-                  activeDistrict === d ? "bg-violet-600 text-white" : "bg-white/5 text-white/50 border border-white/10"}`}>
-                {d}
-              </button>
-            ))}
+      <div className="relative z-10 flex flex-1 overflow-hidden">
+        <main className="flex-1 overflow-y-auto px-6 py-6">
+          <div className="flex gap-2 mb-8 overflow-x-auto pb-2 scrollbar-none">
+            {DISTRICTS.map((d) => {
+              const Icon = d.icon;
+              return (
+                <button key={d.id} onClick={() => setActiveDistrict(d.id)}
+                  className={`flex-shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-medium transition-all duration-200 ${
+                    activeDistrict === d.id
+                      ? `bg-gradient-to-r ${d.color} text-white shadow-lg`
+                      : "bg-white/5 text-white/50 hover:bg-white/10 border border-white/8"}`}>
+                  <Icon size={14} />
+                  {d.label}
+                </button>
+              );
+            })}
           </div>
 
-          <div className="relative rounded-3xl overflow-hidden mb-8 border border-white/10 bg-gradient-to-r from-violet-900/80 via-indigo-900/60 to-slate-900/80 p-8 flex items-center justify-between">
-            <div>
-              <div className="flex items-center gap-2 mb-2 text-violet-400 text-sm">
-                <MapPin size={13} />{activeDistrict}
+          <div className="relative rounded-[28px] overflow-hidden mb-8 border border-white/8 p-8 flex items-center justify-between"
+            style={{background:"linear-gradient(135deg, rgba(124,58,237,0.3) 0%, rgba(79,70,229,0.2) 50%, rgba(17,17,40,0.8) 100%)"}}>
+            <div className="absolute inset-0 backdrop-blur-sm" />
+            <div className="relative z-10">
+              <div className="flex items-center gap-2 mb-3">
+                <activeD.icon size={14} className="text-white/60" />
+                <span className="text-white/60 text-sm font-medium">{activeD.label}</span>
               </div>
-              <h1 className="text-2xl font-bold text-white mb-1">Расскажи своему району</h1>
-              <p className="text-white/50 text-sm">Выйди в прямой эфир — соседи ждут</p>
+              <h1 className="text-3xl font-bold text-white mb-2 tracking-tight">Go Live Now</h1>
+              <p className="text-white/40 text-sm">Your audience is waiting — start your stream</p>
             </div>
             <button onClick={() => setShowGoLive(true)}
-              className="flex items-center gap-2 bg-gradient-to-r from-violet-600 to-indigo-600 text-white font-semibold px-6 py-3 rounded-2xl">
-              <Radio size={16} />Выйти в эфир
+              className="relative z-10 flex items-center gap-2 text-white font-semibold px-7 py-3.5 rounded-2xl transition-all hover:scale-105 shadow-xl"
+              style={{background:"linear-gradient(135deg, #7c3aed, #4f46e5)"}}>
+              <Radio size={16} />
+              Go Live
             </button>
           </div>
 
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-5">
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-              <span className="text-white font-semibold text-sm">Сейчас в эфире</span>
+              <h2 className="text-white font-semibold text-sm">Live Now</h2>
+              <span className="text-white/25 text-xs">{filteredStreams.length} streams</span>
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
-            {LIVE_STREAMS.map((stream) => (
-              <StreamCard key={stream.id} stream={stream} />
-            ))}
-          </div>
+          {loading ? (
+            <div className="text-white/25 text-sm text-center py-16">Loading streams...</div>
+          ) : filteredStreams.length === 0 ? (
+            <div className="text-center py-16">
+              <div className="text-white/20 text-4xl mb-3">📡</div>
+              <p className="text-white/30 text-sm">No live streams in this district yet</p>
+              <button onClick={() => setShowGoLive(true)} className="mt-4 text-violet-400 text-sm hover:text-violet-300">Be the first to go live →</button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-3 gap-5">
+              {filteredStreams.map((stream) => <StreamCard key={stream.id} stream={stream} />)}
+            </div>
+          )}
         </main>
 
         {chatOpen && <ChatSidebar onClose={() => setChatOpen(false)} />}
       </div>
 
       {showGoLive && (
-        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4"
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{background:"rgba(0,0,0,0.8)", backdropFilter:"blur(12px)"}}
           onClick={(e) => e.target === e.currentTarget && setShowGoLive(false)}>
-          <div className="bg-[#0f0f1e] border border-white/15 rounded-3xl p-6 w-full max-w-sm">
-            <div className="flex items-center justify-between mb-5">
-              <h3 className="text-white font-bold text-lg">Новый эфир</h3>
-              <button onClick={() => setShowGoLive(false)} className="text-white/40"><X size={18} /></button>
+          <div className="w-full max-w-sm rounded-[28px] border border-white/10 p-6" style={{background:"linear-gradient(135deg, #0f0f20, #0a0a1a)"}}>
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-white font-bold text-lg">Start a Stream</h3>
+              <button onClick={() => setShowGoLive(false)} className="text-white/30 hover:text-white w-8 h-8 flex items-center justify-center rounded-xl hover:bg-white/10">
+                <X size={16} />
+              </button>
             </div>
             <div className="space-y-3">
-              <input placeholder="Название эфира..."
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm placeholder-white/25 outline-none" />
-              <select className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white/70 text-sm outline-none">
-                {DISTRICTS.map((d) => <option key={d} className="bg-[#0f0f1e]">{d}</option>)}
-              </select>
-              <div className="flex gap-3">
-                <button className="flex-1 flex items-center justify-center gap-2 bg-white/5 border border-white/10 rounded-xl py-2.5 text-white/60 text-sm">
-                  <Mic size={14} />Аудио
+              <input value={streamTitle} onChange={(e) => setStreamTitle(e.target.value)}
+                placeholder="Stream title..."
+                className="w-full bg-white/5 border border-white/8 rounded-2xl px-4 py-3 text-white text-sm placeholder-white/20 outline-none focus:border-violet-500/40 transition-colors" />
+              <div className="grid grid-cols-2 gap-2">
+                {DISTRICTS.filter(d => d.id !== "all").map((d) => {
+                  const Icon = d.icon;
+                  return (
+                    <button key={d.id} onClick={() => setStreamDistrict(d.id)}
+                      className={`flex items-center gap-2 px-3 py-2.5 rounded-2xl text-xs font-medium transition-all ${
+                        streamDistrict === d.id
+                          ? `bg-gradient-to-r ${d.color} text-white`
+                          : "bg-white/5 text-white/40 border border-white/8 hover:bg-white/10"}`}>
+                      <Icon size={12} />{d.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="flex gap-2 pt-1">
+                <button className="flex-1 flex items-center justify-center gap-2 bg-white/5 border border-white/8 rounded-2xl py-3 text-white/50 text-sm hover:bg-white/10 transition-colors">
+                  <Mic size={14} />Audio
                 </button>
-                <button className="flex-1 flex items-center justify-center gap-2 bg-white/5 border border-white/10 rounded-xl py-2.5 text-white/60 text-sm">
-                  <Video size={14} />Видео
+                <button className="flex-1 flex items-center justify-center gap-2 bg-white/5 border border-white/8 rounded-2xl py-3 text-white/50 text-sm hover:bg-white/10 transition-colors">
+                  <Video size={14} />Video
                 </button>
               </div>
-              <button className="w-full bg-gradient-to-r from-violet-600 to-indigo-600 text-white font-semibold py-3 rounded-xl flex items-center justify-center gap-2">
-                <Radio size={15} />Начать эфир
+              <button className="w-full text-white font-semibold py-3.5 rounded-2xl flex items-center justify-center gap-2 transition-all hover:opacity-90"
+                style={{background:"linear-gradient(135deg, #7c3aed, #4f46e5)"}}>
+                <Radio size={15} />Start Stream
               </button>
             </div>
           </div>
