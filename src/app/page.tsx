@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@supabase/supabase-js";
-import { Radio, Users, Zap, MessageSquare, Bell, Search, Mic, Video, X, Send, Phone, Gamepad2, Plane, Briefcase, BookOpen, Palette, Baby, ChevronRight, TrendingUp } from "lucide-react";
+import { Radio, Users, Zap, MessageSquare, Bell, Search, Mic, Video, X, Send, Phone, Gamepad2, Plane, Briefcase, BookOpen, Palette, Baby, ChevronRight, TrendingUp, LogOut } from "lucide-react";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -93,10 +94,6 @@ function BackgroundPaths() {
         <animate attributeName="d" dur="11s" repeatCount="indefinite"
           values="M-100,350 C300,280 500,420 800,300 S1200,200 1500,350;M-100,300 C300,380 500,300 800,380 S1200,280 1500,300;M-100,350 C300,280 500,420 800,300 S1200,200 1500,350"/>
       </path>
-      <path d="M0,550 C400,480 600,600 900,500 S1300,420 1600,520" stroke="url(#pg1)" strokeWidth="0.8" fill="none" opacity="0.6">
-        <animate attributeName="d" dur="14s" repeatCount="indefinite"
-          values="M0,550 C400,480 600,600 900,500 S1300,420 1600,520;M0,500 C400,560 600,480 900,560 S1300,480 1600,480;M0,550 C400,480 600,600 900,500 S1300,420 1600,520"/>
-      </path>
     </svg>
   );
 }
@@ -108,60 +105,42 @@ function StreamCard({ stream }: { stream: any }) {
 
   return (
     <Link href={`/stream/${stream.id}`} className="block group">
-      <div
-        className="relative rounded-3xl overflow-hidden transition-all duration-500"
+      <div className="relative rounded-3xl overflow-hidden transition-all duration-500"
         style={{
           background: "rgba(255,255,255,0.03)",
           border: hovered ? `1px solid ${district.color}50` : "1px solid rgba(255,255,255,0.07)",
           transform: hovered ? "translateY(-8px) scale(1.02)" : "translateY(0) scale(1)",
-          boxShadow: hovered ? `0 24px 60px ${district.glow}30, 0 0 0 1px ${district.color}20` : "none",
+          boxShadow: hovered ? `0 24px 60px ${district.glow}30` : "none",
         }}
         onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
-      >
-        {/* Thumbnail */}
+        onMouseLeave={() => setHovered(false)}>
         <div className="relative h-48 flex items-center justify-center overflow-hidden"
           style={{background:`linear-gradient(135deg, ${district.color}18 0%, #060614 100%)`}}>
-
-          {/* Glow on hover */}
           <div className="absolute inset-0 transition-opacity duration-500"
-            style={{
-              background:`radial-gradient(circle at center, ${district.color}20, transparent 70%)`,
-              opacity: hovered ? 1 : 0
-            }} />
-
-          {/* Neon border top */}
+            style={{background:`radial-gradient(circle at center, ${district.color}20, transparent 70%)`,opacity: hovered ? 1 : 0}} />
           <div className="absolute top-0 left-0 right-0 h-px transition-opacity duration-300"
             style={{background:`linear-gradient(90deg,transparent,${district.color},transparent)`, opacity: hovered ? 1 : 0}} />
-
-          {/* Icon */}
           <div className="relative z-10 text-center">
             <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-3 transition-all duration-300"
               style={{
                 background:`linear-gradient(135deg, ${district.color}, ${district.color}99)`,
-                boxShadow: hovered ? `0 0 30px ${district.glow}, 0 8px 24px ${district.color}50` : `0 8px 20px ${district.color}30`,
+                boxShadow: hovered ? `0 0 30px ${district.glow}` : `0 8px 20px ${district.color}30`,
                 transform: hovered ? "scale(1.15) rotate(-3deg)" : "scale(1) rotate(0deg)"
               }}>
               <Icon size={26} className="text-white" />
             </div>
             <p className="text-white/50 text-xs font-medium">{stream.host_name}</p>
           </div>
-
-          {/* Live badge */}
           <div className="absolute top-3 left-3 flex items-center gap-1.5 px-2.5 py-1 rounded-full"
-            style={{background:"rgba(239,68,68,0.9)",backdropFilter:"blur(8px)"}}>
+            style={{background:"rgba(239,68,68,0.9)"}}>
             <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
             <span className="text-white text-[10px] font-bold uppercase tracking-wider">Live</span>
           </div>
-
-          {/* Viewers */}
           <div className="absolute bottom-3 right-3 flex items-center gap-1.5 px-2.5 py-1 rounded-full"
-            style={{background:"rgba(0,0,0,0.7)",backdropFilter:"blur(8px)",border:"1px solid rgba(255,255,255,0.08)"}}>
+            style={{background:"rgba(0,0,0,0.7)",border:"1px solid rgba(255,255,255,0.08)"}}>
             <Users size={10} className="text-white/60" />
             <span className="text-white/80 text-xs font-semibold">{stream.viewer_count.toLocaleString()}</span>
           </div>
-
-          {/* Trending badge */}
           {stream.viewer_count > 400 && (
             <div className="absolute top-3 right-3 flex items-center gap-1 px-2 py-1 rounded-full"
               style={{background:`${district.color}25`,border:`1px solid ${district.color}40`}}>
@@ -170,17 +149,11 @@ function StreamCard({ stream }: { stream: any }) {
             </div>
           )}
         </div>
-
-        {/* Info */}
         <div className="p-4">
-          <p className="text-white/90 text-sm font-bold mb-3 leading-tight line-clamp-1">{stream.title}</p>
+          <p className="text-white/90 text-sm font-bold mb-3 leading-tight">{stream.title}</p>
           <div className="flex items-center justify-between">
             <span className="text-xs px-2.5 py-1 rounded-full font-semibold"
-              style={{
-                background:`${district.color}15`,
-                border:`1px solid ${district.color}35`,
-                color: district.color
-              }}>
+              style={{background:`${district.color}15`,border:`1px solid ${district.color}35`,color:district.color}}>
               {district.label}
             </span>
             <div className="flex items-center gap-1.5">
@@ -214,19 +187,18 @@ function ChatSidebar({ onClose }: { onClose: () => void }) {
           <span className="text-white font-bold text-sm">Messages</span>
         </div>
         <button onClick={onClose}
-          className="w-7 h-7 flex items-center justify-center rounded-xl text-white/30 hover:text-white transition-all hover:scale-110"
+          className="w-7 h-7 flex items-center justify-center rounded-xl text-white/30 hover:text-white transition-all"
           style={{background:"rgba(124,58,237,0.1)",border:"1px solid rgba(124,58,237,0.2)"}}>
           <X size={13} />
         </button>
       </div>
-
       {!activeChat ? (
         <div className="flex-1 overflow-y-auto">
           {MESSAGES.map((msg) => (
             <button key={msg.id} onClick={() => setActiveChat(msg.id)}
-              className="w-full flex items-center gap-3 px-5 py-3.5 text-left transition-all hover:bg-violet-500/5 group">
-              <div className="w-10 h-10 rounded-2xl flex items-center justify-center text-white text-xs font-bold flex-shrink-0 transition-transform group-hover:scale-105"
-                style={{background:"linear-gradient(135deg,#7c3aed,#4f46e5)",boxShadow:"0 4px 12px rgba(124,58,237,0.3)"}}>
+              className="w-full flex items-center gap-3 px-5 py-3.5 text-left transition-all hover:bg-violet-500/5">
+              <div className="w-10 h-10 rounded-2xl flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
+                style={{background:"linear-gradient(135deg,#7c3aed,#4f46e5)"}}>
                 {msg.name[0]}
               </div>
               <div className="flex-1 min-w-0">
@@ -249,11 +221,11 @@ function ChatSidebar({ onClose }: { onClose: () => void }) {
         <>
           <div className="flex items-center gap-3 px-5 py-3"
             style={{borderBottom:"1px solid rgba(124,58,237,0.15)"}}>
-            <button onClick={() => setActiveChat(null)} className="text-violet-400/60 hover:text-violet-400 text-lg transition-colors">←</button>
+            <button onClick={() => setActiveChat(null)} className="text-violet-400/60 hover:text-violet-400 text-lg">←</button>
             <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white text-xs font-bold"
               style={{background:"linear-gradient(135deg,#7c3aed,#4f46e5)"}}>K</div>
             <span className="text-white text-sm font-semibold">Kamola</span>
-            <button className="ml-auto text-violet-400/40 hover:text-violet-400 transition-colors"><Phone size={14} /></button>
+            <button className="ml-auto text-violet-400/40 hover:text-violet-400"><Phone size={14} /></button>
           </div>
           <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
             {[
@@ -262,9 +234,9 @@ function ChatSidebar({ onClose }: { onClose: () => void }) {
               { id:"3", text:"When is the next one?", mine:false },
             ].map((m) => (
               <div key={m.id} className={`flex ${m.mine ? "justify-end" : "justify-start"}`}>
-                <div className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-xs font-medium`}
+                <div className="max-w-[75%] rounded-2xl px-4 py-2.5 text-xs font-medium"
                   style={m.mine
-                    ? {background:"linear-gradient(135deg,#7c3aed,#4f46e5)",color:"white",boxShadow:"0 4px 12px rgba(124,58,237,0.3)"}
+                    ? {background:"linear-gradient(135deg,#7c3aed,#4f46e5)",color:"white"}
                     : {background:"rgba(124,58,237,0.1)",color:"rgba(255,255,255,0.8)",border:"1px solid rgba(124,58,237,0.2)"}}>
                   {m.text}
                 </div>
@@ -277,7 +249,7 @@ function ChatSidebar({ onClose }: { onClose: () => void }) {
               <input value={input} onChange={(e) => setInput(e.target.value)}
                 placeholder="Write a message..."
                 className="flex-1 bg-transparent text-white text-xs outline-none placeholder-violet-400/20" />
-              <button className="text-violet-400 hover:text-violet-300 transition-colors"><Send size={13} /></button>
+              <button className="text-violet-400 hover:text-violet-300"><Send size={13} /></button>
             </div>
           </div>
         </>
@@ -287,6 +259,7 @@ function ChatSidebar({ onClose }: { onClose: () => void }) {
 }
 
 export default function HomePage() {
+  const router = useRouter();
   const [chatOpen, setChatOpen] = useState(false);
   const [activeDistrict, setActiveDistrict] = useState("all");
   const [showGoLive, setShowGoLive] = useState(false);
@@ -294,8 +267,23 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [streamTitle, setStreamTitle] = useState("");
   const [streamDistrict, setStreamDistrict] = useState("gaming");
+  const [user, setUser] = useState<any>(null);
+  const [authLoading, setAuthLoading] = useState(true);
 
-  useEffect(() => { fetchStreams(); }, []);
+  useEffect(() => {
+    checkAuth();
+    fetchStreams();
+  }, []);
+
+  const checkAuth = async () => {
+    const { data } = await supabase.auth.getSession();
+    if (!data.session) {
+      router.push("/auth");
+    } else {
+      setUser(data.session.user);
+    }
+    setAuthLoading(false);
+  };
 
   const fetchStreams = async () => {
     const { data } = await supabase.from("streams").select("*").eq("status", "live").order("created_at", { ascending: false });
@@ -303,9 +291,23 @@ export default function HomePage() {
     setLoading(false);
   };
 
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    router.push("/auth");
+  };
+
   const filteredStreams = activeDistrict === "all" ? streams : streams.filter(s => s.district === activeDistrict);
   const activeD = DISTRICTS.find(d => d.id === activeDistrict) || DISTRICTS[0];
   const ActiveIcon = activeD.icon;
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{background:"#060614"}}>
+        <div className="w-10 h-10 rounded-full border-2 animate-spin"
+          style={{borderColor:"rgba(124,58,237,0.2)",borderTopColor:"#7c3aed"}} />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen text-white flex flex-col" style={{background:"#060614"}}>
@@ -313,8 +315,7 @@ export default function HomePage() {
         .scrollbar-none::-webkit-scrollbar{display:none}
         .scrollbar-none{-ms-overflow-style:none;scrollbar-width:none}
         @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
-        @keyframes neonPulse{0%,100%{box-shadow:0 0 20px rgba(124,58,237,0.4)}50%{box-shadow:0 0 40px rgba(124,58,237,0.7),0 0 80px rgba(124,58,237,0.3)}}
-        @keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
+        @keyframes neonPulse{0%,100%{box-shadow:0 0 20px rgba(124,58,237,0.4)}50%{box-shadow:0 0 40px rgba(124,58,237,0.7)}}
         .float{animation:float 5s ease-in-out infinite}
         .neon-pulse{animation:neonPulse 3s ease-in-out infinite}
         .liquid-btn{transition:all .3s cubic-bezier(0.34,1.56,0.64,1)}
@@ -328,8 +329,6 @@ export default function HomePage() {
           style={{background:"radial-gradient(circle,#7c3aed,transparent)",filter:"blur(80px)"}} />
         <div className="absolute -bottom-40 -right-40 w-[500px] h-[500px] rounded-full opacity-15"
           style={{background:"radial-gradient(circle,#4f46e5,transparent)",filter:"blur(80px)"}} />
-        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[400px] h-[400px] rounded-full opacity-8"
-          style={{background:"radial-gradient(circle,#ec4899,transparent)",filter:"blur(100px)"}} />
         <BackgroundPaths />
         <Sparkles />
       </div>
@@ -337,8 +336,6 @@ export default function HomePage() {
       {/* Navbar */}
       <nav className="relative z-10 flex items-center justify-between px-6 py-4"
         style={{borderBottom:"1px solid rgba(124,58,237,0.2)",backdropFilter:"blur(20px)",background:"rgba(6,6,20,0.9)"}}>
-
-        {/* Logo */}
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-2xl flex items-center justify-center float neon-pulse"
             style={{background:"linear-gradient(135deg,#7c3aed,#4f46e5)"}}>
@@ -353,32 +350,45 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Search */}
-        <div className="flex items-center gap-2.5 rounded-2xl px-4 py-2.5 w-64 transition-all focus-within:border-violet-500/40"
+        <div className="flex items-center gap-2.5 rounded-2xl px-4 py-2.5 w-64"
           style={{background:"rgba(124,58,237,0.08)",border:"1px solid rgba(124,58,237,0.2)"}}>
           <Search size={14} className="text-violet-400/50" />
           <input placeholder="Search streams, creators..."
             className="bg-transparent text-sm text-white/80 outline-none placeholder-violet-400/25 w-full" />
         </div>
 
-        {/* Right */}
         <div className="flex items-center gap-2">
           <button className="relative p-2.5 rounded-2xl transition-all hover:scale-110"
             style={{background:"rgba(124,58,237,0.1)",border:"1px solid rgba(124,58,237,0.2)"}}>
             <Bell size={16} className="text-violet-400/70" />
             <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full"
-              style={{background:"linear-gradient(135deg,#ef4444,#dc2626)",boxShadow:"0 0 6px rgba(239,68,68,0.6)"}} />
+              style={{background:"linear-gradient(135deg,#ef4444,#dc2626)"}} />
           </button>
-          <div className="w-9 h-9 rounded-2xl flex items-center justify-center text-xs font-black cursor-pointer transition-all hover:scale-110"
-            style={{background:"linear-gradient(135deg,#7c3aed,#4f46e5)",boxShadow:"0 4px 16px rgba(124,58,237,0.4)"}}>
-            YOU
+
+          {/* User avatar */}
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-2xl"
+            style={{background:"rgba(124,58,237,0.1)",border:"1px solid rgba(124,58,237,0.2)"}}>
+            <div className="w-7 h-7 rounded-xl flex items-center justify-center text-xs font-black text-white"
+              style={{background:"linear-gradient(135deg,#7c3aed,#4f46e5)"}}>
+              {user?.user_metadata?.username?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || "U"}
+            </div>
+            <span className="text-white/70 text-xs font-semibold max-w-[80px] truncate">
+              {user?.user_metadata?.username || user?.email?.split("@")[0] || "User"}
+            </span>
           </div>
+
           <button onClick={() => setChatOpen(!chatOpen)}
             className="p-2.5 rounded-2xl transition-all hover:scale-110"
             style={chatOpen
-              ? {background:"linear-gradient(135deg,#7c3aed,#4f46e5)",boxShadow:"0 4px 16px rgba(124,58,237,0.4)"}
+              ? {background:"linear-gradient(135deg,#7c3aed,#4f46e5)"}
               : {background:"rgba(124,58,237,0.1)",border:"1px solid rgba(124,58,237,0.2)"}}>
             <MessageSquare size={16} className={chatOpen ? "text-white" : "text-violet-400/70"} />
+          </button>
+
+          <button onClick={handleSignOut}
+            className="p-2.5 rounded-2xl transition-all hover:scale-110"
+            style={{background:"rgba(239,68,68,0.1)",border:"1px solid rgba(239,68,68,0.2)"}}>
+            <LogOut size={16} className="text-red-400/70" />
           </button>
         </div>
       </nav>
@@ -397,7 +407,7 @@ export default function HomePage() {
                   style={isActive ? {
                     background:`linear-gradient(135deg,${d.color},${d.color}bb)`,
                     color:"white",
-                    boxShadow:`0 8px 24px ${d.glow}50, 0 0 0 1px ${d.color}40`,
+                    boxShadow:`0 8px 24px ${d.glow}50`,
                   } : {
                     background:"rgba(255,255,255,0.04)",
                     color:"rgba(255,255,255,0.35)",
@@ -427,7 +437,11 @@ export default function HomePage() {
                 <span className="text-sm font-semibold" style={{color:activeD.color}}>{activeD.label}</span>
               </div>
               <h1 className="text-3xl font-black text-white mb-2 tracking-tight">Go Live Now</h1>
-              <p className="text-white/30 text-sm">Your audience is waiting — start streaming</p>
+              <p className="text-white/30 text-sm">
+                Welcome back, <span className="text-violet-400 font-semibold">
+                  {user?.user_metadata?.username || user?.email?.split("@")[0] || "Creator"}
+                </span> 👋
+              </p>
             </div>
             <button onClick={() => setShowGoLive(true)}
               className="relative z-10 flex items-center gap-2.5 text-white font-bold px-7 py-3.5 rounded-2xl liquid-btn"
@@ -435,12 +449,11 @@ export default function HomePage() {
                 background:`linear-gradient(135deg,${activeD.color},${activeD.color}cc)`,
                 boxShadow:`0 8px 32px ${activeD.glow}50`
               }}>
-              <Radio size={16} />
-              Go Live
+              <Radio size={16} />Go Live
             </button>
           </div>
 
-          {/* Live Now header */}
+          {/* Live Now */}
           <div className="flex items-center justify-between mb-5">
             <div className="flex items-center gap-3">
               <div className="relative">
@@ -453,13 +466,12 @@ export default function HomePage() {
                 {filteredStreams.length} streams
               </span>
             </div>
-            <button className="flex items-center gap-1 text-xs font-semibold transition-colors hover:text-white"
+            <button className="flex items-center gap-1 text-xs font-semibold"
               style={{color:activeD.color}}>
               See all <ChevronRight size={13} />
             </button>
           </div>
 
-          {/* Streams grid */}
           {loading ? (
             <div className="flex items-center justify-center py-20">
               <div className="w-10 h-10 rounded-full border-2 animate-spin"
@@ -495,14 +507,12 @@ export default function HomePage() {
           onClick={(e) => e.target === e.currentTarget && setShowGoLive(false)}>
           <div className="w-full max-w-sm rounded-[28px] p-6 relative overflow-hidden"
             style={{background:"linear-gradient(135deg,#0f0820,#0a0614)",border:"1px solid rgba(124,58,237,0.3)",boxShadow:"0 40px 100px rgba(124,58,237,0.2)"}}>
-            {/* Top neon line */}
             <div className="absolute top-0 left-0 right-0 h-px"
               style={{background:"linear-gradient(90deg,transparent,rgba(124,58,237,0.9),transparent)"}} />
-
             <div className="flex items-center justify-between mb-6">
               <div>
                 <h3 className="text-white font-black text-xl">Start Streaming</h3>
-                <p className="text-violet-400/40 text-xs mt-0.5">Go live in seconds ⚡</p>
+                <p className="text-violet-400/40 text-xs mt-0.5">Go live in seconds</p>
               </div>
               <button onClick={() => setShowGoLive(false)}
                 className="w-9 h-9 flex items-center justify-center rounded-2xl text-white/30 hover:text-white liquid-btn"
@@ -510,13 +520,11 @@ export default function HomePage() {
                 <X size={16} />
               </button>
             </div>
-
             <div className="space-y-3">
               <input value={streamTitle} onChange={(e) => setStreamTitle(e.target.value)}
-                placeholder="What's your stream about?"
-                className="w-full rounded-2xl px-4 py-3 text-white text-sm placeholder-violet-400/20 outline-none transition-all"
+                placeholder="What is your stream about?"
+                className="w-full rounded-2xl px-4 py-3 text-white text-sm placeholder-violet-400/20 outline-none"
                 style={{background:"rgba(124,58,237,0.08)",border:"1px solid rgba(124,58,237,0.2)"}} />
-
               <div className="grid grid-cols-2 gap-2">
                 {DISTRICTS.filter(d => d.id !== "all").map((d) => {
                   const Icon = d.icon;
@@ -528,7 +536,6 @@ export default function HomePage() {
                         background:`${d.color}20`,
                         border:`1px solid ${d.color}50`,
                         color:d.color,
-                        boxShadow:`0 4px 12px ${d.glow}30`
                       } : {
                         background:"rgba(255,255,255,0.03)",
                         border:"1px solid rgba(255,255,255,0.07)",
@@ -539,7 +546,6 @@ export default function HomePage() {
                   );
                 })}
               </div>
-
               <div className="flex gap-2">
                 <button className="flex-1 flex items-center justify-center gap-2 rounded-2xl py-3 text-sm font-semibold liquid-btn"
                   style={{background:"rgba(124,58,237,0.08)",border:"1px solid rgba(124,58,237,0.2)",color:"rgba(167,139,250,0.7)"}}>
@@ -550,7 +556,6 @@ export default function HomePage() {
                   <Video size={14} />With Video
                 </button>
               </div>
-
               <button className="w-full text-white font-black py-4 rounded-2xl flex items-center justify-center gap-2.5 text-base liquid-btn neon-pulse"
                 style={{background:"linear-gradient(135deg,#7c3aed,#4f46e5)",boxShadow:"0 8px 32px rgba(124,58,237,0.4)"}}>
                 <Radio size={18} />Start Streaming Now
