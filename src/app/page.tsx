@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { createClient } from "@supabase/supabase-js";
-import { Radio, Users, Zap, MessageSquare, Bell, Search, Mic, Video, X, Send, Phone, MapPin, Gamepad2, Plane, Briefcase, BookOpen, Palette, Baby } from "lucide-react";
+import { Radio, Users, Zap, MessageSquare, Bell, Search, Mic, Video, X, Send, Phone, Gamepad2, Plane, Briefcase, BookOpen, Palette, Baby, ChevronRight, TrendingUp } from "lucide-react";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -11,63 +11,185 @@ const supabase = createClient(
 );
 
 const DISTRICTS = [
-  { id: "all", label: "All Districts", icon: Zap, color: "from-violet-500 to-indigo-500", bg: "bg-violet-500/10" },
-  { id: "gaming", label: "Gamer Zone", icon: Gamepad2, color: "from-green-500 to-emerald-500", bg: "bg-green-500/10" },
-  { id: "travel", label: "Travel Hub", icon: Plane, color: "from-sky-500 to-blue-500", bg: "bg-sky-500/10" },
-  { id: "business", label: "Biz District", icon: Briefcase, color: "from-amber-500 to-orange-500", bg: "bg-amber-500/10" },
-  { id: "education", label: "University", icon: BookOpen, color: "from-violet-500 to-purple-500", bg: "bg-violet-500/10" },
-  { id: "creative", label: "Creative Hub", icon: Palette, color: "from-pink-500 to-rose-500", bg: "bg-pink-500/10" },
-  { id: "kids", label: "Kids Zone", icon: Baby, color: "from-yellow-500 to-amber-500", bg: "bg-yellow-500/10" },
+  { id: "all", label: "All Districts", icon: Zap, color: "#7c3aed", glow: "rgba(124,58,237,0.5)" },
+  { id: "gaming", label: "Gamer Zone", icon: Gamepad2, color: "#10b981", glow: "rgba(16,185,129,0.5)" },
+  { id: "travel", label: "Travel Hub", icon: Plane, color: "#0ea5e9", glow: "rgba(14,165,233,0.5)" },
+  { id: "business", label: "Biz District", icon: Briefcase, color: "#f97316", glow: "rgba(249,115,22,0.5)" },
+  { id: "education", label: "University", icon: BookOpen, color: "#a855f7", glow: "rgba(168,85,247,0.5)" },
+  { id: "creative", label: "Creative Hub", icon: Palette, color: "#ec4899", glow: "rgba(236,72,153,0.5)" },
+  { id: "kids", label: "Kids Zone", icon: Baby, color: "#eab308", glow: "rgba(234,179,8,0.5)" },
 ];
 
 const MESSAGES = [
-  { id: "1", name: "Kamola", text: "Loved your stream yesterday!", time: "9:04 PM", unread: 2 },
+  { id: "1", name: "Kamola", text: "Loved your stream!", time: "9:04 PM", unread: 2 },
   { id: "2", name: "Dilshod", text: "When is the next live?", time: "8:51 PM", unread: 0 },
-  { id: "3", name: "Nilufar", text: "Can you call me into your stream?", time: "7:30 PM", unread: 1 },
+  { id: "3", name: "Nilufar", text: "Call me into your stream!", time: "7:30 PM", unread: 1 },
 ];
 
-const CHAT_MESSAGES = [
-  { id: "1", from: "Kamola", text: "Loved your stream yesterday!", mine: false },
-  { id: "2", from: "Me", text: "Thanks! Glad you enjoyed it", mine: true },
-  { id: "3", from: "Kamola", text: "When is the next one?", mine: false },
-];
+function Sparkles() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    canvas.width = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
+    const particles: any[] = [];
+    for (let i = 0; i < 100; i++) {
+      particles.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        r: Math.random() * 1.5 + 0.2,
+        dx: (Math.random() - 0.5) * 0.25,
+        dy: (Math.random() - 0.5) * 0.25,
+        pulse: Math.random() * Math.PI * 2,
+        color: ["167,139,250", "99,102,241", "236,72,153", "14,165,233"][Math.floor(Math.random() * 4)],
+      });
+    }
+    let animId: number;
+    const animate = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      particles.forEach(p => {
+        p.x += p.dx; p.y += p.dy; p.pulse += 0.015;
+        if (p.x < 0) p.x = canvas.width;
+        if (p.x > canvas.width) p.x = 0;
+        if (p.y < 0) p.y = canvas.height;
+        if (p.y > canvas.height) p.y = 0;
+        const o = 0.15 + 0.3 * Math.sin(p.pulse);
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(${p.color},${o})`;
+        ctx.fill();
+      });
+      animId = requestAnimationFrame(animate);
+    };
+    animate();
+    return () => cancelAnimationFrame(animId);
+  }, []);
+  return <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none" />;
+}
 
-function LiveBadge() {
+function BackgroundPaths() {
   return (
-    <span className="flex items-center gap-1 bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
-      <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-      Live
-    </span>
+    <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{opacity:0.15}} xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="pg1" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#7c3aed" stopOpacity="0"/>
+          <stop offset="50%" stopColor="#7c3aed" stopOpacity="0.8"/>
+          <stop offset="100%" stopColor="#4f46e5" stopOpacity="0"/>
+        </linearGradient>
+        <linearGradient id="pg2" x1="100%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#ec4899" stopOpacity="0"/>
+          <stop offset="50%" stopColor="#ec4899" stopOpacity="0.5"/>
+          <stop offset="100%" stopColor="#4f46e5" stopOpacity="0"/>
+        </linearGradient>
+      </defs>
+      <path d="M-100,150 C200,80 400,250 700,120 S1100,30 1400,180" stroke="url(#pg1)" strokeWidth="1.5" fill="none">
+        <animate attributeName="d" dur="8s" repeatCount="indefinite"
+          values="M-100,150 C200,80 400,250 700,120 S1100,30 1400,180;M-100,200 C200,130 400,180 700,200 S1100,100 1400,130;M-100,150 C200,80 400,250 700,120 S1100,30 1400,180"/>
+      </path>
+      <path d="M-100,350 C300,280 500,420 800,300 S1200,200 1500,350" stroke="url(#pg2)" strokeWidth="1" fill="none">
+        <animate attributeName="d" dur="11s" repeatCount="indefinite"
+          values="M-100,350 C300,280 500,420 800,300 S1200,200 1500,350;M-100,300 C300,380 500,300 800,380 S1200,280 1500,300;M-100,350 C300,280 500,420 800,300 S1200,200 1500,350"/>
+      </path>
+      <path d="M0,550 C400,480 600,600 900,500 S1300,420 1600,520" stroke="url(#pg1)" strokeWidth="0.8" fill="none" opacity="0.6">
+        <animate attributeName="d" dur="14s" repeatCount="indefinite"
+          values="M0,550 C400,480 600,600 900,500 S1300,420 1600,520;M0,500 C400,560 600,480 900,560 S1300,480 1600,480;M0,550 C400,480 600,600 900,500 S1300,420 1600,520"/>
+      </path>
+    </svg>
   );
 }
 
 function StreamCard({ stream }: { stream: any }) {
   const district = DISTRICTS.find(d => d.id === stream.district) || DISTRICTS[1];
   const Icon = district.icon;
+  const [hovered, setHovered] = useState(false);
+
   return (
     <Link href={`/stream/${stream.id}`} className="block group">
-      <div className="relative rounded-3xl overflow-hidden border border-white/10 bg-white/5 backdrop-blur-sm hover:border-white/20 transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1">
-        <div className={`relative h-40 bg-gradient-to-br ${district.color} opacity-20 absolute inset-0`} />
-        <div className={`relative h-40 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center`}>
-          <div className={`absolute inset-0 bg-gradient-to-br ${district.color} opacity-10`} />
+      <div
+        className="relative rounded-3xl overflow-hidden transition-all duration-500"
+        style={{
+          background: "rgba(255,255,255,0.03)",
+          border: hovered ? `1px solid ${district.color}50` : "1px solid rgba(255,255,255,0.07)",
+          transform: hovered ? "translateY(-8px) scale(1.02)" : "translateY(0) scale(1)",
+          boxShadow: hovered ? `0 24px 60px ${district.glow}30, 0 0 0 1px ${district.color}20` : "none",
+        }}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+      >
+        {/* Thumbnail */}
+        <div className="relative h-48 flex items-center justify-center overflow-hidden"
+          style={{background:`linear-gradient(135deg, ${district.color}18 0%, #060614 100%)`}}>
+
+          {/* Glow on hover */}
+          <div className="absolute inset-0 transition-opacity duration-500"
+            style={{
+              background:`radial-gradient(circle at center, ${district.color}20, transparent 70%)`,
+              opacity: hovered ? 1 : 0
+            }} />
+
+          {/* Neon border top */}
+          <div className="absolute top-0 left-0 right-0 h-px transition-opacity duration-300"
+            style={{background:`linear-gradient(90deg,transparent,${district.color},transparent)`, opacity: hovered ? 1 : 0}} />
+
+          {/* Icon */}
           <div className="relative z-10 text-center">
-            <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${district.color} flex items-center justify-center mx-auto mb-2 shadow-lg`}>
-              <Icon size={24} className="text-white" />
+            <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-3 transition-all duration-300"
+              style={{
+                background:`linear-gradient(135deg, ${district.color}, ${district.color}99)`,
+                boxShadow: hovered ? `0 0 30px ${district.glow}, 0 8px 24px ${district.color}50` : `0 8px 20px ${district.color}30`,
+                transform: hovered ? "scale(1.15) rotate(-3deg)" : "scale(1) rotate(0deg)"
+              }}>
+              <Icon size={26} className="text-white" />
             </div>
-            <div className="text-white/60 text-xs">{stream.host_name}</div>
+            <p className="text-white/50 text-xs font-medium">{stream.host_name}</p>
           </div>
-          <div className="absolute top-3 left-3"><LiveBadge /></div>
-          <div className="absolute bottom-3 right-3 flex items-center gap-1 bg-black/60 backdrop-blur rounded-full px-2 py-1 text-white text-xs">
-            <Users size={10} />{stream.viewer_count}
+
+          {/* Live badge */}
+          <div className="absolute top-3 left-3 flex items-center gap-1.5 px-2.5 py-1 rounded-full"
+            style={{background:"rgba(239,68,68,0.9)",backdropFilter:"blur(8px)"}}>
+            <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+            <span className="text-white text-[10px] font-bold uppercase tracking-wider">Live</span>
           </div>
+
+          {/* Viewers */}
+          <div className="absolute bottom-3 right-3 flex items-center gap-1.5 px-2.5 py-1 rounded-full"
+            style={{background:"rgba(0,0,0,0.7)",backdropFilter:"blur(8px)",border:"1px solid rgba(255,255,255,0.08)"}}>
+            <Users size={10} className="text-white/60" />
+            <span className="text-white/80 text-xs font-semibold">{stream.viewer_count.toLocaleString()}</span>
+          </div>
+
+          {/* Trending badge */}
+          {stream.viewer_count > 400 && (
+            <div className="absolute top-3 right-3 flex items-center gap-1 px-2 py-1 rounded-full"
+              style={{background:`${district.color}25`,border:`1px solid ${district.color}40`}}>
+              <TrendingUp size={9} style={{color:district.color}} />
+              <span className="text-[10px] font-bold" style={{color:district.color}}>Hot</span>
+            </div>
+          )}
         </div>
+
+        {/* Info */}
         <div className="p-4">
-          <p className="text-white/90 text-sm font-semibold leading-tight mb-2">{stream.title}</p>
+          <p className="text-white/90 text-sm font-bold mb-3 leading-tight line-clamp-1">{stream.title}</p>
           <div className="flex items-center justify-between">
-            <span className={`text-xs px-2 py-0.5 rounded-full bg-gradient-to-r ${district.color} bg-clip-text text-transparent border border-white/10 font-medium`}>
+            <span className="text-xs px-2.5 py-1 rounded-full font-semibold"
+              style={{
+                background:`${district.color}15`,
+                border:`1px solid ${district.color}35`,
+                color: district.color
+              }}>
               {district.label}
             </span>
-            <span className="text-white/30 text-xs">{stream.host_name}</span>
+            <div className="flex items-center gap-1.5">
+              <div className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white"
+                style={{background:`linear-gradient(135deg,${district.color},${district.color}99)`}}>
+                {stream.host_name[0]}
+              </div>
+              <span className="text-white/30 text-xs">{stream.host_name}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -80,33 +202,43 @@ function ChatSidebar({ onClose }: { onClose: () => void }) {
   const [input, setInput] = useState("");
 
   return (
-    <div className="w-80 h-full border-l border-white/8 bg-black/40 backdrop-blur-2xl flex flex-col">
-      <div className="flex items-center justify-between px-5 py-4 border-b border-white/8">
+    <div className="w-80 h-full flex flex-col"
+      style={{background:"rgba(6,6,20,0.95)",backdropFilter:"blur(24px)",borderLeft:"1px solid rgba(124,58,237,0.2)"}}>
+      <div className="flex items-center justify-between px-5 py-4"
+        style={{borderBottom:"1px solid rgba(124,58,237,0.15)"}}>
         <div className="flex items-center gap-2">
-          <MessageSquare size={15} className="text-violet-400" />
-          <span className="text-white font-semibold text-sm">Messages</span>
+          <div className="w-7 h-7 rounded-xl flex items-center justify-center"
+            style={{background:"rgba(124,58,237,0.2)",border:"1px solid rgba(124,58,237,0.3)"}}>
+            <MessageSquare size={13} className="text-violet-400" />
+          </div>
+          <span className="text-white font-bold text-sm">Messages</span>
         </div>
-        <button onClick={onClose} className="text-white/30 hover:text-white transition-colors w-6 h-6 flex items-center justify-center rounded-full hover:bg-white/10">
-          <X size={14} />
+        <button onClick={onClose}
+          className="w-7 h-7 flex items-center justify-center rounded-xl text-white/30 hover:text-white transition-all hover:scale-110"
+          style={{background:"rgba(124,58,237,0.1)",border:"1px solid rgba(124,58,237,0.2)"}}>
+          <X size={13} />
         </button>
       </div>
+
       {!activeChat ? (
         <div className="flex-1 overflow-y-auto">
           {MESSAGES.map((msg) => (
             <button key={msg.id} onClick={() => setActiveChat(msg.id)}
-              className="w-full flex items-center gap-3 px-5 py-3.5 hover:bg-white/5 transition-colors text-left">
-              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+              className="w-full flex items-center gap-3 px-5 py-3.5 text-left transition-all hover:bg-violet-500/5 group">
+              <div className="w-10 h-10 rounded-2xl flex items-center justify-center text-white text-xs font-bold flex-shrink-0 transition-transform group-hover:scale-105"
+                style={{background:"linear-gradient(135deg,#7c3aed,#4f46e5)",boxShadow:"0 4px 12px rgba(124,58,237,0.3)"}}>
                 {msg.name[0]}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex justify-between items-center mb-0.5">
-                  <span className="text-white/90 text-sm font-medium">{msg.name}</span>
-                  <span className="text-white/25 text-xs">{msg.time}</span>
+                  <span className="text-white/90 text-sm font-semibold">{msg.name}</span>
+                  <span className="text-white/20 text-xs">{msg.time}</span>
                 </div>
-                <p className="text-white/35 text-xs truncate">{msg.text}</p>
+                <p className="text-white/30 text-xs truncate">{msg.text}</p>
               </div>
               {msg.unread > 0 && (
-                <span className="w-5 h-5 rounded-full bg-violet-500 text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0">
+                <span className="w-5 h-5 rounded-full text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0"
+                  style={{background:"linear-gradient(135deg,#7c3aed,#4f46e5)"}}>
                   {msg.unread}
                 </span>
               )}
@@ -115,26 +247,37 @@ function ChatSidebar({ onClose }: { onClose: () => void }) {
         </div>
       ) : (
         <>
-          <div className="flex items-center gap-3 px-5 py-3 border-b border-white/8">
-            <button onClick={() => setActiveChat(null)} className="text-white/30 hover:text-white">←</button>
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-white text-xs font-bold">K</div>
-            <span className="text-white text-sm font-medium">Kamola</span>
-            <button className="ml-auto text-white/30 hover:text-violet-400"><Phone size={14} /></button>
+          <div className="flex items-center gap-3 px-5 py-3"
+            style={{borderBottom:"1px solid rgba(124,58,237,0.15)"}}>
+            <button onClick={() => setActiveChat(null)} className="text-violet-400/60 hover:text-violet-400 text-lg transition-colors">←</button>
+            <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white text-xs font-bold"
+              style={{background:"linear-gradient(135deg,#7c3aed,#4f46e5)"}}>K</div>
+            <span className="text-white text-sm font-semibold">Kamola</span>
+            <button className="ml-auto text-violet-400/40 hover:text-violet-400 transition-colors"><Phone size={14} /></button>
           </div>
           <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
-            {CHAT_MESSAGES.map((m) => (
+            {[
+              { id:"1", text:"Loved your stream!", mine:false },
+              { id:"2", text:"Thanks! Glad you enjoyed it", mine:true },
+              { id:"3", text:"When is the next one?", mine:false },
+            ].map((m) => (
               <div key={m.id} className={`flex ${m.mine ? "justify-end" : "justify-start"}`}>
-                <div className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-sm ${m.mine ? "bg-violet-600 text-white rounded-br-sm" : "bg-white/8 text-white/90 rounded-bl-sm"}`}>
+                <div className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-xs font-medium`}
+                  style={m.mine
+                    ? {background:"linear-gradient(135deg,#7c3aed,#4f46e5)",color:"white",boxShadow:"0 4px 12px rgba(124,58,237,0.3)"}
+                    : {background:"rgba(124,58,237,0.1)",color:"rgba(255,255,255,0.8)",border:"1px solid rgba(124,58,237,0.2)"}}>
                   {m.text}
                 </div>
               </div>
             ))}
           </div>
-          <div className="px-4 py-3 border-t border-white/8">
-            <div className="flex gap-2 bg-white/6 rounded-2xl px-4 py-2.5 border border-white/10">
+          <div className="px-4 py-3" style={{borderTop:"1px solid rgba(124,58,237,0.15)"}}>
+            <div className="flex gap-2 rounded-2xl px-4 py-2.5"
+              style={{background:"rgba(124,58,237,0.08)",border:"1px solid rgba(124,58,237,0.2)"}}>
               <input value={input} onChange={(e) => setInput(e.target.value)}
-                placeholder="Write a message..." className="flex-1 bg-transparent text-white text-sm outline-none placeholder-white/25" />
-              <button className="text-violet-400 hover:text-violet-300"><Send size={14} /></button>
+                placeholder="Write a message..."
+                className="flex-1 bg-transparent text-white text-xs outline-none placeholder-violet-400/20" />
+              <button className="text-violet-400 hover:text-violet-300 transition-colors"><Send size={13} /></button>
             </div>
           </div>
         </>
@@ -162,53 +305,104 @@ export default function HomePage() {
 
   const filteredStreams = activeDistrict === "all" ? streams : streams.filter(s => s.district === activeDistrict);
   const activeD = DISTRICTS.find(d => d.id === activeDistrict) || DISTRICTS[0];
+  const ActiveIcon = activeD.icon;
 
   return (
-    <div className="min-h-screen text-white flex flex-col" style={{background: "radial-gradient(ellipse at top left, #1a0533 0%, #080812 40%, #070714 100%)"}}>
+    <div className="min-h-screen text-white flex flex-col" style={{background:"#060614"}}>
+      <style>{`
+        .scrollbar-none::-webkit-scrollbar{display:none}
+        .scrollbar-none{-ms-overflow-style:none;scrollbar-width:none}
+        @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+        @keyframes neonPulse{0%,100%{box-shadow:0 0 20px rgba(124,58,237,0.4)}50%{box-shadow:0 0 40px rgba(124,58,237,0.7),0 0 80px rgba(124,58,237,0.3)}}
+        @keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
+        .float{animation:float 5s ease-in-out infinite}
+        .neon-pulse{animation:neonPulse 3s ease-in-out infinite}
+        .liquid-btn{transition:all .3s cubic-bezier(0.34,1.56,0.64,1)}
+        .liquid-btn:hover{transform:scale(1.06) translateY(-2px)}
+        .liquid-btn:active{transform:scale(0.97)}
+      `}</style>
+
+      {/* Background */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute -top-60 -left-60 w-[500px] h-[500px] rounded-full" style={{background:"radial-gradient(circle, rgba(124,58,237,0.15) 0%, transparent 70%)"}} />
-        <div className="absolute top-1/2 -right-40 w-96 h-96 rounded-full" style={{background:"radial-gradient(circle, rgba(79,70,229,0.1) 0%, transparent 70%)"}} />
-        <div className="absolute bottom-0 left-1/4 w-80 h-80 rounded-full" style={{background:"radial-gradient(circle, rgba(139,92,246,0.08) 0%, transparent 70%)"}} />
-        <div className="absolute inset-0 opacity-[0.02]" style={{backgroundImage:"linear-gradient(rgba(255,255,255,1) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,1) 1px,transparent 1px)",backgroundSize:"64px 64px"}} />
+        <div className="absolute -top-60 -left-60 w-[700px] h-[700px] rounded-full opacity-20"
+          style={{background:"radial-gradient(circle,#7c3aed,transparent)",filter:"blur(80px)"}} />
+        <div className="absolute -bottom-40 -right-40 w-[500px] h-[500px] rounded-full opacity-15"
+          style={{background:"radial-gradient(circle,#4f46e5,transparent)",filter:"blur(80px)"}} />
+        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[400px] h-[400px] rounded-full opacity-8"
+          style={{background:"radial-gradient(circle,#ec4899,transparent)",filter:"blur(100px)"}} />
+        <BackgroundPaths />
+        <Sparkles />
       </div>
 
-      <nav className="relative z-10 flex items-center justify-between px-6 py-4 border-b border-white/6 backdrop-blur-md bg-black/20">
+      {/* Navbar */}
+      <nav className="relative z-10 flex items-center justify-between px-6 py-4"
+        style={{borderBottom:"1px solid rgba(124,58,237,0.2)",backdropFilter:"blur(20px)",background:"rgba(6,6,20,0.9)"}}>
+
+        {/* Logo */}
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-violet-500/25">
-            <Zap size={16} className="text-white" />
+          <div className="w-10 h-10 rounded-2xl flex items-center justify-center float neon-pulse"
+            style={{background:"linear-gradient(135deg,#7c3aed,#4f46e5)"}}>
+            <Zap size={18} className="text-white" />
           </div>
           <div>
-            <span className="font-bold text-white text-lg tracking-tight">VibeCity</span>
+            <span className="font-black text-xl text-white tracking-tight">VibeCity</span>
+            <div className="flex items-center gap-1 mt-0.5">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="text-emerald-400/70 text-[10px] font-semibold uppercase tracking-widest">Live</span>
+            </div>
           </div>
         </div>
-        <div className="flex items-center gap-2 bg-white/6 rounded-2xl px-4 py-2.5 border border-white/8 w-56 backdrop-blur">
-          <Search size={13} className="text-white/30" />
-          <input placeholder="Search streams..." className="bg-transparent text-sm text-white/70 outline-none placeholder-white/25 w-full" />
+
+        {/* Search */}
+        <div className="flex items-center gap-2.5 rounded-2xl px-4 py-2.5 w-64 transition-all focus-within:border-violet-500/40"
+          style={{background:"rgba(124,58,237,0.08)",border:"1px solid rgba(124,58,237,0.2)"}}>
+          <Search size={14} className="text-violet-400/50" />
+          <input placeholder="Search streams, creators..."
+            className="bg-transparent text-sm text-white/80 outline-none placeholder-violet-400/25 w-full" />
         </div>
+
+        {/* Right */}
         <div className="flex items-center gap-2">
-          <button className="relative p-2.5 rounded-2xl hover:bg-white/8 transition-colors">
-            <Bell size={16} className="text-white/50" />
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-violet-500" />
+          <button className="relative p-2.5 rounded-2xl transition-all hover:scale-110"
+            style={{background:"rgba(124,58,237,0.1)",border:"1px solid rgba(124,58,237,0.2)"}}>
+            <Bell size={16} className="text-violet-400/70" />
+            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full"
+              style={{background:"linear-gradient(135deg,#ef4444,#dc2626)",boxShadow:"0 0 6px rgba(239,68,68,0.6)"}} />
           </button>
-          <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-xs font-bold cursor-pointer">YOU</div>
+          <div className="w-9 h-9 rounded-2xl flex items-center justify-center text-xs font-black cursor-pointer transition-all hover:scale-110"
+            style={{background:"linear-gradient(135deg,#7c3aed,#4f46e5)",boxShadow:"0 4px 16px rgba(124,58,237,0.4)"}}>
+            YOU
+          </div>
           <button onClick={() => setChatOpen(!chatOpen)}
-            className={`p-2.5 rounded-2xl transition-colors ${chatOpen ? "bg-violet-600 text-white" : "hover:bg-white/8 text-white/50"}`}>
-            <MessageSquare size={16} />
+            className="p-2.5 rounded-2xl transition-all hover:scale-110"
+            style={chatOpen
+              ? {background:"linear-gradient(135deg,#7c3aed,#4f46e5)",boxShadow:"0 4px 16px rgba(124,58,237,0.4)"}
+              : {background:"rgba(124,58,237,0.1)",border:"1px solid rgba(124,58,237,0.2)"}}>
+            <MessageSquare size={16} className={chatOpen ? "text-white" : "text-violet-400/70"} />
           </button>
         </div>
       </nav>
 
       <div className="relative z-10 flex flex-1 overflow-hidden">
-        <main className="flex-1 overflow-y-auto px-6 py-6">
-          <div className="flex gap-2 mb-8 overflow-x-auto pb-2 scrollbar-none">
+        <main className="flex-1 overflow-y-auto scrollbar-none px-6 py-6">
+
+          {/* Districts */}
+          <div className="flex gap-2 mb-8 overflow-x-auto scrollbar-none pb-1">
             {DISTRICTS.map((d) => {
               const Icon = d.icon;
+              const isActive = activeDistrict === d.id;
               return (
                 <button key={d.id} onClick={() => setActiveDistrict(d.id)}
-                  className={`flex-shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-medium transition-all duration-200 ${
-                    activeDistrict === d.id
-                      ? `bg-gradient-to-r ${d.color} text-white shadow-lg`
-                      : "bg-white/5 text-white/50 hover:bg-white/10 border border-white/8"}`}>
+                  className="flex-shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-semibold transition-all liquid-btn"
+                  style={isActive ? {
+                    background:`linear-gradient(135deg,${d.color},${d.color}bb)`,
+                    color:"white",
+                    boxShadow:`0 8px 24px ${d.glow}50, 0 0 0 1px ${d.color}40`,
+                  } : {
+                    background:"rgba(255,255,255,0.04)",
+                    color:"rgba(255,255,255,0.35)",
+                    border:"1px solid rgba(255,255,255,0.07)"
+                  }}>
                   <Icon size={14} />
                   {d.label}
                 </button>
@@ -216,40 +410,73 @@ export default function HomePage() {
             })}
           </div>
 
-          <div className="relative rounded-[28px] overflow-hidden mb-8 border border-white/8 p-8 flex items-center justify-between"
-            style={{background:"linear-gradient(135deg, rgba(124,58,237,0.3) 0%, rgba(79,70,229,0.2) 50%, rgba(17,17,40,0.8) 100%)"}}>
-            <div className="absolute inset-0 backdrop-blur-sm" />
+          {/* Hero */}
+          <div className="relative rounded-[28px] overflow-hidden mb-8 p-8 flex items-center justify-between"
+            style={{
+              background:`linear-gradient(135deg, ${activeD.color}20 0%, rgba(79,70,229,0.1) 60%, rgba(6,6,20,0.95) 100%)`,
+              border:`1px solid ${activeD.color}25`,
+              boxShadow:`0 0 80px ${activeD.glow}15`
+            }}>
+            <BackgroundPaths />
             <div className="relative z-10">
               <div className="flex items-center gap-2 mb-3">
-                <activeD.icon size={14} className="text-white/60" />
-                <span className="text-white/60 text-sm font-medium">{activeD.label}</span>
+                <div className="w-6 h-6 rounded-lg flex items-center justify-center"
+                  style={{background:`${activeD.color}25`,border:`1px solid ${activeD.color}40`}}>
+                  <ActiveIcon size={12} style={{color:activeD.color}} />
+                </div>
+                <span className="text-sm font-semibold" style={{color:activeD.color}}>{activeD.label}</span>
               </div>
-              <h1 className="text-3xl font-bold text-white mb-2 tracking-tight">Go Live Now</h1>
-              <p className="text-white/40 text-sm">Your audience is waiting — start your stream</p>
+              <h1 className="text-3xl font-black text-white mb-2 tracking-tight">Go Live Now</h1>
+              <p className="text-white/30 text-sm">Your audience is waiting — start streaming</p>
             </div>
             <button onClick={() => setShowGoLive(true)}
-              className="relative z-10 flex items-center gap-2 text-white font-semibold px-7 py-3.5 rounded-2xl transition-all hover:scale-105 shadow-xl"
-              style={{background:"linear-gradient(135deg, #7c3aed, #4f46e5)"}}>
+              className="relative z-10 flex items-center gap-2.5 text-white font-bold px-7 py-3.5 rounded-2xl liquid-btn"
+              style={{
+                background:`linear-gradient(135deg,${activeD.color},${activeD.color}cc)`,
+                boxShadow:`0 8px 32px ${activeD.glow}50`
+              }}>
               <Radio size={16} />
               Go Live
             </button>
           </div>
 
+          {/* Live Now header */}
           <div className="flex items-center justify-between mb-5">
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-              <h2 className="text-white font-semibold text-sm">Live Now</h2>
-              <span className="text-white/25 text-xs">{filteredStreams.length} streams</span>
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <div className="w-2.5 h-2.5 rounded-full bg-red-500" />
+                <div className="absolute inset-0 rounded-full bg-red-400 animate-ping opacity-75" />
+              </div>
+              <span className="text-white font-bold text-sm">Live Now</span>
+              <span className="px-2 py-0.5 rounded-full text-xs font-semibold"
+                style={{background:"rgba(239,68,68,0.15)",border:"1px solid rgba(239,68,68,0.3)",color:"rgba(252,165,165,0.9)"}}>
+                {filteredStreams.length} streams
+              </span>
             </div>
+            <button className="flex items-center gap-1 text-xs font-semibold transition-colors hover:text-white"
+              style={{color:activeD.color}}>
+              See all <ChevronRight size={13} />
+            </button>
           </div>
 
+          {/* Streams grid */}
           {loading ? (
-            <div className="text-white/25 text-sm text-center py-16">Loading streams...</div>
+            <div className="flex items-center justify-center py-20">
+              <div className="w-10 h-10 rounded-full border-2 animate-spin"
+                style={{borderColor:"rgba(124,58,237,0.2)",borderTopColor:"#7c3aed"}} />
+            </div>
           ) : filteredStreams.length === 0 ? (
-            <div className="text-center py-16">
-              <div className="text-white/20 text-4xl mb-3">📡</div>
-              <p className="text-white/30 text-sm">No live streams in this district yet</p>
-              <button onClick={() => setShowGoLive(true)} className="mt-4 text-violet-400 text-sm hover:text-violet-300">Be the first to go live →</button>
+            <div className="text-center py-20">
+              <div className="w-16 h-16 rounded-3xl flex items-center justify-center mx-auto mb-4"
+                style={{background:`${activeD.color}15`,border:`1px solid ${activeD.color}25`}}>
+                <ActiveIcon size={24} style={{color:activeD.color}} />
+              </div>
+              <p className="text-white/20 text-sm mb-4">No live streams in this district yet</p>
+              <button onClick={() => setShowGoLive(true)}
+                className="text-sm font-semibold flex items-center gap-1 mx-auto liquid-btn px-4 py-2 rounded-xl"
+                style={{color:activeD.color,background:`${activeD.color}10`,border:`1px solid ${activeD.color}25`}}>
+                Be the first to go live <ChevronRight size={14} />
+              </button>
             </div>
           ) : (
             <div className="grid grid-cols-3 gap-5">
@@ -261,46 +488,72 @@ export default function HomePage() {
         {chatOpen && <ChatSidebar onClose={() => setChatOpen(false)} />}
       </div>
 
+      {/* Go Live Modal */}
       {showGoLive && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{background:"rgba(0,0,0,0.8)", backdropFilter:"blur(12px)"}}
+          style={{background:"rgba(0,0,0,0.88)",backdropFilter:"blur(20px)"}}
           onClick={(e) => e.target === e.currentTarget && setShowGoLive(false)}>
-          <div className="w-full max-w-sm rounded-[28px] border border-white/10 p-6" style={{background:"linear-gradient(135deg, #0f0f20, #0a0a1a)"}}>
+          <div className="w-full max-w-sm rounded-[28px] p-6 relative overflow-hidden"
+            style={{background:"linear-gradient(135deg,#0f0820,#0a0614)",border:"1px solid rgba(124,58,237,0.3)",boxShadow:"0 40px 100px rgba(124,58,237,0.2)"}}>
+            {/* Top neon line */}
+            <div className="absolute top-0 left-0 right-0 h-px"
+              style={{background:"linear-gradient(90deg,transparent,rgba(124,58,237,0.9),transparent)"}} />
+
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-white font-bold text-lg">Start a Stream</h3>
-              <button onClick={() => setShowGoLive(false)} className="text-white/30 hover:text-white w-8 h-8 flex items-center justify-center rounded-xl hover:bg-white/10">
+              <div>
+                <h3 className="text-white font-black text-xl">Start Streaming</h3>
+                <p className="text-violet-400/40 text-xs mt-0.5">Go live in seconds ⚡</p>
+              </div>
+              <button onClick={() => setShowGoLive(false)}
+                className="w-9 h-9 flex items-center justify-center rounded-2xl text-white/30 hover:text-white liquid-btn"
+                style={{background:"rgba(124,58,237,0.1)",border:"1px solid rgba(124,58,237,0.2)"}}>
                 <X size={16} />
               </button>
             </div>
+
             <div className="space-y-3">
               <input value={streamTitle} onChange={(e) => setStreamTitle(e.target.value)}
-                placeholder="Stream title..."
-                className="w-full bg-white/5 border border-white/8 rounded-2xl px-4 py-3 text-white text-sm placeholder-white/20 outline-none focus:border-violet-500/40 transition-colors" />
+                placeholder="What's your stream about?"
+                className="w-full rounded-2xl px-4 py-3 text-white text-sm placeholder-violet-400/20 outline-none transition-all"
+                style={{background:"rgba(124,58,237,0.08)",border:"1px solid rgba(124,58,237,0.2)"}} />
+
               <div className="grid grid-cols-2 gap-2">
                 {DISTRICTS.filter(d => d.id !== "all").map((d) => {
                   const Icon = d.icon;
+                  const isSelected = streamDistrict === d.id;
                   return (
                     <button key={d.id} onClick={() => setStreamDistrict(d.id)}
-                      className={`flex items-center gap-2 px-3 py-2.5 rounded-2xl text-xs font-medium transition-all ${
-                        streamDistrict === d.id
-                          ? `bg-gradient-to-r ${d.color} text-white`
-                          : "bg-white/5 text-white/40 border border-white/8 hover:bg-white/10"}`}>
+                      className="flex items-center gap-2 px-3 py-2.5 rounded-2xl text-xs font-semibold liquid-btn"
+                      style={isSelected ? {
+                        background:`${d.color}20`,
+                        border:`1px solid ${d.color}50`,
+                        color:d.color,
+                        boxShadow:`0 4px 12px ${d.glow}30`
+                      } : {
+                        background:"rgba(255,255,255,0.03)",
+                        border:"1px solid rgba(255,255,255,0.07)",
+                        color:"rgba(255,255,255,0.3)"
+                      }}>
                       <Icon size={12} />{d.label}
                     </button>
                   );
                 })}
               </div>
-              <div className="flex gap-2 pt-1">
-                <button className="flex-1 flex items-center justify-center gap-2 bg-white/5 border border-white/8 rounded-2xl py-3 text-white/50 text-sm hover:bg-white/10 transition-colors">
-                  <Mic size={14} />Audio
+
+              <div className="flex gap-2">
+                <button className="flex-1 flex items-center justify-center gap-2 rounded-2xl py-3 text-sm font-semibold liquid-btn"
+                  style={{background:"rgba(124,58,237,0.08)",border:"1px solid rgba(124,58,237,0.2)",color:"rgba(167,139,250,0.7)"}}>
+                  <Mic size={14} />Audio Only
                 </button>
-                <button className="flex-1 flex items-center justify-center gap-2 bg-white/5 border border-white/8 rounded-2xl py-3 text-white/50 text-sm hover:bg-white/10 transition-colors">
-                  <Video size={14} />Video
+                <button className="flex-1 flex items-center justify-center gap-2 rounded-2xl py-3 text-sm font-semibold liquid-btn"
+                  style={{background:"rgba(124,58,237,0.08)",border:"1px solid rgba(124,58,237,0.2)",color:"rgba(167,139,250,0.7)"}}>
+                  <Video size={14} />With Video
                 </button>
               </div>
-              <button className="w-full text-white font-semibold py-3.5 rounded-2xl flex items-center justify-center gap-2 transition-all hover:opacity-90"
-                style={{background:"linear-gradient(135deg, #7c3aed, #4f46e5)"}}>
-                <Radio size={15} />Start Stream
+
+              <button className="w-full text-white font-black py-4 rounded-2xl flex items-center justify-center gap-2.5 text-base liquid-btn neon-pulse"
+                style={{background:"linear-gradient(135deg,#7c3aed,#4f46e5)",boxShadow:"0 8px 32px rgba(124,58,237,0.4)"}}>
+                <Radio size={18} />Start Streaming Now
               </button>
             </div>
           </div>
