@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@supabase/supabase-js";
-import { Radio, Users, Zap, MessageSquare, Bell, Search, Mic, Video, X, Send, Phone, Gamepad2, Plane, Briefcase, BookOpen, Palette, Baby, ChevronRight, TrendingUp, LogOut, Menu } from "lucide-react";
+import { Radio, Users, Zap, MessageSquare, Bell, Search, Mic, Video, X, Send, Phone, Gamepad2, Plane, Briefcase, BookOpen, Palette, Baby, ChevronRight, TrendingUp, LogOut } from "lucide-react";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -372,8 +372,7 @@ export default function HomePage() {
       {/* Navbar */}
       <nav className="relative z-10 flex items-center justify-between px-4 md:px-6 py-3 md:py-4"
         style={{borderBottom:"1px solid rgba(124,58,237,0.2)",backdropFilter:"blur(20px)",background:"rgba(6,6,20,0.9)"}}>
-        
-        {/* Logo */}
+
         <div className="flex items-center gap-2 md:gap-3">
           <div className="w-9 h-9 md:w-10 md:h-10 rounded-2xl flex items-center justify-center float neon-pulse"
             style={{background:"linear-gradient(135deg,#7c3aed,#4f46e5)"}}>
@@ -388,7 +387,6 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Search - hidden on mobile */}
         <div className="hidden md:flex items-center gap-2.5 rounded-2xl px-4 py-2.5 w-64"
           style={{background:"rgba(124,58,237,0.08)",border:"1px solid rgba(124,58,237,0.2)"}}>
           <Search size={14} className="text-violet-400/50" />
@@ -396,9 +394,7 @@ export default function HomePage() {
             className="bg-transparent text-sm text-white/80 outline-none placeholder-violet-400/25 w-full" />
         </div>
 
-        {/* Right actions */}
         <div className="flex items-center gap-1.5 md:gap-2">
-          {/* Search icon on mobile */}
           <button className="md:hidden p-2 rounded-xl"
             style={{background:"rgba(124,58,237,0.1)",border:"1px solid rgba(124,58,237,0.2)"}}>
             <Search size={15} className="text-violet-400/70" />
@@ -407,21 +403,21 @@ export default function HomePage() {
           <button className="relative p-2 md:p-2.5 rounded-xl md:rounded-2xl transition-all hover:scale-110"
             style={{background:"rgba(124,58,237,0.1)",border:"1px solid rgba(124,58,237,0.2)"}}>
             <Bell size={15} className="text-violet-400/70" />
-            <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full"
-              style={{background:"#ef4444"}} />
+            <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full" style={{background:"#ef4444"}} />
           </button>
 
-          {/* User - show initial on mobile */}
-          <div className="flex items-center gap-2 px-2 md:px-3 py-1.5 rounded-xl md:rounded-2xl"
+          {/* Profile link */}
+          <Link href="/profile"
+            className="flex items-center gap-2 px-2 md:px-3 py-1.5 rounded-xl md:rounded-2xl transition-all hover:scale-105"
             style={{background:"rgba(124,58,237,0.1)",border:"1px solid rgba(124,58,237,0.2)"}}>
             <div className="w-6 h-6 md:w-7 md:h-7 rounded-lg md:rounded-xl flex items-center justify-center text-xs font-black text-white"
               style={{background:"linear-gradient(135deg,#7c3aed,#4f46e5)"}}>
-              {user?.user_metadata?.username?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || "U"}
+              {user?.user_metadata?.avatar || user?.user_metadata?.username?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || "U"}
             </div>
             <span className="hidden md:block text-white/70 text-xs font-semibold max-w-[80px] truncate">
               {user?.user_metadata?.username || user?.email?.split("@")[0] || "User"}
             </span>
-          </div>
+          </Link>
 
           <button onClick={() => setChatOpen(!chatOpen)}
             className="p-2 md:p-2.5 rounded-xl md:rounded-2xl transition-all hover:scale-110"
@@ -442,7 +438,6 @@ export default function HomePage() {
       <div className="relative z-10 flex flex-1 overflow-hidden">
         <main className="flex-1 overflow-y-auto scrollbar-none px-4 md:px-6 py-4 md:py-6">
 
-          {/* Districts */}
           <div className="flex gap-2 mb-6 md:mb-8 overflow-x-auto scrollbar-none pb-1">
             {DISTRICTS.map((d) => {
               const Icon = d.icon;
@@ -466,7 +461,6 @@ export default function HomePage() {
             })}
           </div>
 
-          {/* Hero */}
           <div className="relative rounded-[20px] md:rounded-[28px] overflow-hidden mb-6 md:mb-8 p-5 md:p-8 flex items-center justify-between"
             style={{
               background:`linear-gradient(135deg, ${activeD.color}20 0%, rgba(79,70,229,0.1) 60%, rgba(6,6,20,0.95) 100%)`,
@@ -500,7 +494,6 @@ export default function HomePage() {
             </button>
           </div>
 
-          {/* Live Now */}
           <div className="flex items-center justify-between mb-4 md:mb-5">
             <div className="flex items-center gap-2 md:gap-3">
               <div className="relative">
@@ -519,7 +512,6 @@ export default function HomePage() {
             </button>
           </div>
 
-          {/* Grid */}
           {loading ? (
             <div className="flex items-center justify-center py-16">
               <div className="w-10 h-10 rounded-full border-2 animate-spin"
@@ -545,11 +537,9 @@ export default function HomePage() {
           )}
         </main>
 
-        {/* Chat sidebar */}
         {chatOpen && <ChatSidebar onClose={() => setChatOpen(false)} />}
       </div>
 
-      {/* Go Live Modal */}
       {showGoLive && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
           style={{background:"rgba(0,0,0,0.88)",backdropFilter:"blur(20px)"}}
@@ -558,11 +548,8 @@ export default function HomePage() {
             style={{background:"linear-gradient(135deg,#0f0820,#0a0614)",border:"1px solid rgba(124,58,237,0.3)"}}>
             <div className="absolute top-0 left-0 right-0 h-px"
               style={{background:"linear-gradient(90deg,transparent,rgba(124,58,237,0.9),transparent)"}} />
-            
-            {/* Handle for mobile */}
             <div className="w-10 h-1 rounded-full mx-auto mb-4 sm:hidden"
               style={{background:"rgba(255,255,255,0.2)"}} />
-
             <div className="flex items-center justify-between mb-5">
               <div>
                 <h3 className="text-white font-black text-lg md:text-xl">Start Streaming</h3>
@@ -574,14 +561,12 @@ export default function HomePage() {
                 <X size={15} />
               </button>
             </div>
-
             <div className="space-y-3">
               <input value={streamTitle} onChange={(e) => setStreamTitle(e.target.value)}
                 placeholder="What is your stream about?"
                 className="w-full rounded-2xl px-4 py-3 text-white text-sm placeholder-violet-400/20 outline-none"
                 style={{background:"rgba(124,58,237,0.08)",border:"1px solid rgba(124,58,237,0.2)"}}
                 onKeyDown={(e) => e.key === "Enter" && handleGoLive()} />
-
               <div className="grid grid-cols-2 gap-2">
                 {DISTRICTS.filter(d => d.id !== "all").map((d) => {
                   const Icon = d.icon;
@@ -599,7 +584,6 @@ export default function HomePage() {
                   );
                 })}
               </div>
-
               <button onClick={handleGoLive} disabled={isCreatingStream}
                 className="w-full text-white font-black py-4 rounded-2xl flex items-center justify-center gap-2.5 text-base liquid-btn neon-pulse disabled:opacity-50"
                 style={{background:"linear-gradient(135deg,#7c3aed,#4f46e5)",boxShadow:"0 8px 32px rgba(124,58,237,0.4)"}}>
