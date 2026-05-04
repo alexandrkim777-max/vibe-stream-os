@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@supabase/supabase-js";
-import { Radio, Users, Zap, MessageSquare, Bell, Search, Mic, Video, X, Send, Phone, Gamepad2, Plane, Briefcase, BookOpen, Palette, Baby, ChevronRight, TrendingUp, LogOut } from "lucide-react";
+import { Radio, Users, Zap, MessageSquare, Bell, Search, Mic, Video, X, Send, Phone, Gamepad2, Plane, Briefcase, BookOpen, Palette, Baby, ChevronRight, TrendingUp, LogOut, Menu } from "lucide-react";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -37,7 +37,7 @@ function Sparkles() {
     canvas.width = canvas.offsetWidth;
     canvas.height = canvas.offsetHeight;
     const particles: any[] = [];
-    for (let i = 0; i < 100; i++) {
+    for (let i = 0; i < 60; i++) {
       particles.push({
         x: Math.random() * canvas.width,
         y: Math.random() * canvas.height,
@@ -109,25 +109,25 @@ function StreamCard({ stream }: { stream: any }) {
         style={{
           background: "rgba(255,255,255,0.03)",
           border: hovered ? `1px solid ${district.color}50` : "1px solid rgba(255,255,255,0.07)",
-          transform: hovered ? "translateY(-8px) scale(1.02)" : "translateY(0) scale(1)",
-          boxShadow: hovered ? `0 24px 60px ${district.glow}30` : "none",
+          transform: hovered ? "translateY(-6px) scale(1.02)" : "translateY(0) scale(1)",
+          boxShadow: hovered ? `0 20px 50px ${district.glow}30` : "none",
         }}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}>
-        <div className="relative h-48 flex items-center justify-center overflow-hidden"
+        <div className="relative h-40 sm:h-48 flex items-center justify-center overflow-hidden"
           style={{background:`linear-gradient(135deg, ${district.color}18 0%, #060614 100%)`}}>
           <div className="absolute inset-0 transition-opacity duration-500"
             style={{background:`radial-gradient(circle at center, ${district.color}20, transparent 70%)`,opacity: hovered ? 1 : 0}} />
           <div className="absolute top-0 left-0 right-0 h-px transition-opacity duration-300"
             style={{background:`linear-gradient(90deg,transparent,${district.color},transparent)`, opacity: hovered ? 1 : 0}} />
           <div className="relative z-10 text-center">
-            <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-3 transition-all duration-300"
+            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center mx-auto mb-2 sm:mb-3 transition-all duration-300"
               style={{
                 background:`linear-gradient(135deg, ${district.color}, ${district.color}99)`,
                 boxShadow: hovered ? `0 0 30px ${district.glow}` : `0 8px 20px ${district.color}30`,
                 transform: hovered ? "scale(1.15) rotate(-3deg)" : "scale(1) rotate(0deg)"
               }}>
-              <Icon size={26} className="text-white" />
+              <Icon size={22} className="text-white" />
             </div>
             <p className="text-white/50 text-xs font-medium">{stream.host_name}</p>
           </div>
@@ -149,19 +149,19 @@ function StreamCard({ stream }: { stream: any }) {
             </div>
           )}
         </div>
-        <div className="p-4">
-          <p className="text-white/90 text-sm font-bold mb-3 leading-tight">{stream.title}</p>
+        <div className="p-3 sm:p-4">
+          <p className="text-white/90 text-sm font-bold mb-2 sm:mb-3 leading-tight line-clamp-2">{stream.title}</p>
           <div className="flex items-center justify-between">
-            <span className="text-xs px-2.5 py-1 rounded-full font-semibold"
+            <span className="text-xs px-2 py-0.5 rounded-full font-semibold"
               style={{background:`${district.color}15`,border:`1px solid ${district.color}35`,color:district.color}}>
               {district.label}
             </span>
-            <div className="flex items-center gap-1.5">
-              <div className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white"
+            <div className="flex items-center gap-1">
+              <div className="w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold text-white"
                 style={{background:`linear-gradient(135deg,${district.color},${district.color}99)`}}>
                 {stream.host_name?.[0]}
               </div>
-              <span className="text-white/30 text-xs">{stream.host_name}</span>
+              <span className="text-white/30 text-xs hidden sm:block">{stream.host_name}</span>
             </div>
           </div>
         </div>
@@ -175,8 +175,8 @@ function ChatSidebar({ onClose }: { onClose: () => void }) {
   const [input, setInput] = useState("");
 
   return (
-    <div className="w-80 h-full flex flex-col"
-      style={{background:"rgba(6,6,20,0.95)",backdropFilter:"blur(24px)",borderLeft:"1px solid rgba(124,58,237,0.2)"}}>
+    <div className="fixed inset-0 z-40 md:relative md:inset-auto md:w-80 md:h-full flex flex-col"
+      style={{background:"rgba(6,6,20,0.98)",backdropFilter:"blur(24px)",borderLeft:"1px solid rgba(124,58,237,0.2)"}}>
       <div className="flex items-center justify-between px-5 py-4"
         style={{borderBottom:"1px solid rgba(124,58,237,0.15)"}}>
         <div className="flex items-center gap-2">
@@ -274,15 +274,10 @@ export default function HomePage() {
   useEffect(() => {
     checkAuth();
     fetchStreams();
-
-    // Realtime updates for streams
     const channel = supabase
       .channel("streams-realtime")
-      .on("postgres_changes", {
-        event: "*", schema: "public", table: "streams"
-      }, () => fetchStreams())
+      .on("postgres_changes", { event: "*", schema: "public", table: "streams" }, () => fetchStreams())
       .subscribe();
-
     return () => { supabase.removeChannel(channel); };
   }, []);
 
@@ -297,10 +292,7 @@ export default function HomePage() {
   };
 
   const fetchStreams = async () => {
-    const { data } = await supabase
-      .from("streams").select("*")
-      .eq("status", "live")
-      .order("created_at", { ascending: false });
+    const { data } = await supabase.from("streams").select("*").eq("status", "live").order("created_at", { ascending: false });
     if (data) setStreams(data);
     setLoading(false);
   };
@@ -325,9 +317,7 @@ export default function HomePage() {
         status: "live",
         viewer_count: 0,
       }).select().single();
-
       if (error) throw error;
-
       setShowGoLive(false);
       setStreamTitle("");
       router.push(`/stream/${data.id}?host=true`);
@@ -346,7 +336,7 @@ export default function HomePage() {
       <div className="min-h-screen flex items-center justify-center" style={{background:"#060614"}}>
         <div className="text-center">
           <div className="w-16 h-16 rounded-3xl flex items-center justify-center mx-auto mb-4"
-            style={{background:"linear-gradient(135deg,#7c3aed,#4f46e5)",boxShadow:"0 8px 32px rgba(124,58,237,0.4)"}}>
+            style={{background:"linear-gradient(135deg,#7c3aed,#4f46e5)"}}>
             <Zap size={28} className="text-white" />
           </div>
           <div className="w-8 h-8 rounded-full border-2 mx-auto animate-spin"
@@ -379,189 +369,219 @@ export default function HomePage() {
         <Sparkles />
       </div>
 
-      <nav className="relative z-10 flex items-center justify-between px-6 py-4"
+      {/* Navbar */}
+      <nav className="relative z-10 flex items-center justify-between px-4 md:px-6 py-3 md:py-4"
         style={{borderBottom:"1px solid rgba(124,58,237,0.2)",backdropFilter:"blur(20px)",background:"rgba(6,6,20,0.9)"}}>
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl flex items-center justify-center float neon-pulse"
+        
+        {/* Logo */}
+        <div className="flex items-center gap-2 md:gap-3">
+          <div className="w-9 h-9 md:w-10 md:h-10 rounded-2xl flex items-center justify-center float neon-pulse"
             style={{background:"linear-gradient(135deg,#7c3aed,#4f46e5)"}}>
-            <Zap size={18} className="text-white" />
+            <Zap size={16} className="text-white" />
           </div>
           <div>
-            <span className="font-black text-xl text-white tracking-tight">VibeCity</span>
-            <div className="flex items-center gap-1 mt-0.5">
+            <span className="font-black text-lg md:text-xl text-white tracking-tight">VibeCity</span>
+            <div className="hidden md:flex items-center gap-1 mt-0.5">
               <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
               <span className="text-emerald-400/70 text-[10px] font-semibold uppercase tracking-widest">Live</span>
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5 rounded-2xl px-4 py-2.5 w-64"
+        {/* Search - hidden on mobile */}
+        <div className="hidden md:flex items-center gap-2.5 rounded-2xl px-4 py-2.5 w-64"
           style={{background:"rgba(124,58,237,0.08)",border:"1px solid rgba(124,58,237,0.2)"}}>
           <Search size={14} className="text-violet-400/50" />
-          <input placeholder="Search streams, creators..."
+          <input placeholder="Search streams..."
             className="bg-transparent text-sm text-white/80 outline-none placeholder-violet-400/25 w-full" />
         </div>
 
-        <div className="flex items-center gap-2">
-          <button className="relative p-2.5 rounded-2xl transition-all hover:scale-110"
+        {/* Right actions */}
+        <div className="flex items-center gap-1.5 md:gap-2">
+          {/* Search icon on mobile */}
+          <button className="md:hidden p-2 rounded-xl"
             style={{background:"rgba(124,58,237,0.1)",border:"1px solid rgba(124,58,237,0.2)"}}>
-            <Bell size={16} className="text-violet-400/70" />
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full"
-              style={{background:"linear-gradient(135deg,#ef4444,#dc2626)"}} />
+            <Search size={15} className="text-violet-400/70" />
           </button>
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-2xl"
+
+          <button className="relative p-2 md:p-2.5 rounded-xl md:rounded-2xl transition-all hover:scale-110"
             style={{background:"rgba(124,58,237,0.1)",border:"1px solid rgba(124,58,237,0.2)"}}>
-            <div className="w-7 h-7 rounded-xl flex items-center justify-center text-xs font-black text-white"
+            <Bell size={15} className="text-violet-400/70" />
+            <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full"
+              style={{background:"#ef4444"}} />
+          </button>
+
+          {/* User - show initial on mobile */}
+          <div className="flex items-center gap-2 px-2 md:px-3 py-1.5 rounded-xl md:rounded-2xl"
+            style={{background:"rgba(124,58,237,0.1)",border:"1px solid rgba(124,58,237,0.2)"}}>
+            <div className="w-6 h-6 md:w-7 md:h-7 rounded-lg md:rounded-xl flex items-center justify-center text-xs font-black text-white"
               style={{background:"linear-gradient(135deg,#7c3aed,#4f46e5)"}}>
               {user?.user_metadata?.username?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || "U"}
             </div>
-            <span className="text-white/70 text-xs font-semibold max-w-[80px] truncate">
+            <span className="hidden md:block text-white/70 text-xs font-semibold max-w-[80px] truncate">
               {user?.user_metadata?.username || user?.email?.split("@")[0] || "User"}
             </span>
           </div>
+
           <button onClick={() => setChatOpen(!chatOpen)}
-            className="p-2.5 rounded-2xl transition-all hover:scale-110"
+            className="p-2 md:p-2.5 rounded-xl md:rounded-2xl transition-all hover:scale-110"
             style={chatOpen
               ? {background:"linear-gradient(135deg,#7c3aed,#4f46e5)"}
               : {background:"rgba(124,58,237,0.1)",border:"1px solid rgba(124,58,237,0.2)"}}>
-            <MessageSquare size={16} className={chatOpen ? "text-white" : "text-violet-400/70"} />
+            <MessageSquare size={15} className={chatOpen ? "text-white" : "text-violet-400/70"} />
           </button>
+
           <button onClick={handleSignOut}
-            className="p-2.5 rounded-2xl transition-all hover:scale-110"
+            className="p-2 md:p-2.5 rounded-xl md:rounded-2xl transition-all hover:scale-110"
             style={{background:"rgba(239,68,68,0.1)",border:"1px solid rgba(239,68,68,0.2)"}}>
-            <LogOut size={16} className="text-red-400/70" />
+            <LogOut size={15} className="text-red-400/70" />
           </button>
         </div>
       </nav>
 
       <div className="relative z-10 flex flex-1 overflow-hidden">
-        <main className="flex-1 overflow-y-auto scrollbar-none px-6 py-6">
-          <div className="flex gap-2 mb-8 overflow-x-auto scrollbar-none pb-1">
+        <main className="flex-1 overflow-y-auto scrollbar-none px-4 md:px-6 py-4 md:py-6">
+
+          {/* Districts */}
+          <div className="flex gap-2 mb-6 md:mb-8 overflow-x-auto scrollbar-none pb-1">
             {DISTRICTS.map((d) => {
               const Icon = d.icon;
               const isActive = activeDistrict === d.id;
               return (
                 <button key={d.id} onClick={() => setActiveDistrict(d.id)}
-                  className="flex-shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-semibold transition-all liquid-btn"
+                  className="flex-shrink-0 flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-2 md:py-2.5 rounded-2xl text-xs md:text-sm font-semibold transition-all liquid-btn"
                   style={isActive ? {
                     background:`linear-gradient(135deg,${d.color},${d.color}bb)`,
                     color:"white",
-                    boxShadow:`0 8px 24px ${d.glow}50`,
+                    boxShadow:`0 6px 20px ${d.glow}50`,
                   } : {
                     background:"rgba(255,255,255,0.04)",
                     color:"rgba(255,255,255,0.35)",
                     border:"1px solid rgba(255,255,255,0.07)"
                   }}>
-                  <Icon size={14} />
-                  {d.label}
+                  <Icon size={12} />
+                  <span className="whitespace-nowrap">{d.label}</span>
                 </button>
               );
             })}
           </div>
 
-          <div className="relative rounded-[28px] overflow-hidden mb-8 p-8 flex items-center justify-between"
+          {/* Hero */}
+          <div className="relative rounded-[20px] md:rounded-[28px] overflow-hidden mb-6 md:mb-8 p-5 md:p-8 flex items-center justify-between"
             style={{
               background:`linear-gradient(135deg, ${activeD.color}20 0%, rgba(79,70,229,0.1) 60%, rgba(6,6,20,0.95) 100%)`,
               border:`1px solid ${activeD.color}25`,
-              boxShadow:`0 0 80px ${activeD.glow}15`
             }}>
             <BackgroundPaths />
             <div className="relative z-10">
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-6 h-6 rounded-lg flex items-center justify-center"
+              <div className="flex items-center gap-2 mb-2 md:mb-3">
+                <div className="w-5 h-5 md:w-6 md:h-6 rounded-lg flex items-center justify-center"
                   style={{background:`${activeD.color}25`,border:`1px solid ${activeD.color}40`}}>
-                  <ActiveIcon size={12} style={{color:activeD.color}} />
+                  <ActiveIcon size={10} style={{color:activeD.color}} />
                 </div>
-                <span className="text-sm font-semibold" style={{color:activeD.color}}>{activeD.label}</span>
+                <span className="text-xs md:text-sm font-semibold" style={{color:activeD.color}}>{activeD.label}</span>
               </div>
-              <h1 className="text-3xl font-black text-white mb-2 tracking-tight">Go Live Now</h1>
-              <p className="text-white/30 text-sm">
-                Welcome back, <span className="text-violet-400 font-semibold">
+              <h1 className="text-xl md:text-3xl font-black text-white mb-1 md:mb-2 tracking-tight">Go Live Now</h1>
+              <p className="text-white/30 text-xs md:text-sm hidden sm:block">
+                Welcome, <span className="text-violet-400 font-semibold">
                   {user?.user_metadata?.username || user?.email?.split("@")[0] || "Creator"}
                 </span> 👋
               </p>
             </div>
             <button onClick={() => setShowGoLive(true)}
-              className="relative z-10 flex items-center gap-2.5 text-white font-bold px-7 py-3.5 rounded-2xl liquid-btn"
+              className="relative z-10 flex items-center gap-2 text-white font-bold px-4 md:px-7 py-2.5 md:py-3.5 rounded-xl md:rounded-2xl liquid-btn text-sm md:text-base"
               style={{
                 background:`linear-gradient(135deg,${activeD.color},${activeD.color}cc)`,
-                boxShadow:`0 8px 32px ${activeD.glow}50`
+                boxShadow:`0 8px 24px ${activeD.glow}40`
               }}>
-              <Radio size={16} />Go Live
+              <Radio size={14} />
+              <span className="hidden sm:block">Go Live</span>
+              <span className="sm:hidden">Live</span>
             </button>
           </div>
 
-          <div className="flex items-center justify-between mb-5">
-            <div className="flex items-center gap-3">
+          {/* Live Now */}
+          <div className="flex items-center justify-between mb-4 md:mb-5">
+            <div className="flex items-center gap-2 md:gap-3">
               <div className="relative">
-                <div className="w-2.5 h-2.5 rounded-full bg-red-500" />
+                <div className="w-2 h-2 md:w-2.5 md:h-2.5 rounded-full bg-red-500" />
                 <div className="absolute inset-0 rounded-full bg-red-400 animate-ping opacity-75" />
               </div>
               <span className="text-white font-bold text-sm">Live Now</span>
               <span className="px-2 py-0.5 rounded-full text-xs font-semibold"
                 style={{background:"rgba(239,68,68,0.15)",border:"1px solid rgba(239,68,68,0.3)",color:"rgba(252,165,165,0.9)"}}>
-                {filteredStreams.length} streams
+                {filteredStreams.length}
               </span>
             </div>
             <button className="flex items-center gap-1 text-xs font-semibold"
               style={{color:activeD.color}}>
-              See all <ChevronRight size={13} />
+              See all <ChevronRight size={12} />
             </button>
           </div>
 
+          {/* Grid */}
           {loading ? (
-            <div className="flex items-center justify-center py-20">
+            <div className="flex items-center justify-center py-16">
               <div className="w-10 h-10 rounded-full border-2 animate-spin"
                 style={{borderColor:"rgba(124,58,237,0.2)",borderTopColor:"#7c3aed"}} />
             </div>
           ) : filteredStreams.length === 0 ? (
-            <div className="text-center py-20">
-              <div className="w-16 h-16 rounded-3xl flex items-center justify-center mx-auto mb-4"
+            <div className="text-center py-16">
+              <div className="w-14 h-14 rounded-3xl flex items-center justify-center mx-auto mb-4"
                 style={{background:`${activeD.color}15`,border:`1px solid ${activeD.color}25`}}>
-                <ActiveIcon size={24} style={{color:activeD.color}} />
+                <ActiveIcon size={22} style={{color:activeD.color}} />
               </div>
-              <p className="text-white/20 text-sm mb-4">No live streams in this district yet</p>
+              <p className="text-white/20 text-sm mb-4">No live streams yet</p>
               <button onClick={() => setShowGoLive(true)}
                 className="text-sm font-semibold flex items-center gap-1 mx-auto liquid-btn px-4 py-2 rounded-xl"
                 style={{color:activeD.color,background:`${activeD.color}10`,border:`1px solid ${activeD.color}25`}}>
-                Be the first to go live <ChevronRight size={14} />
+                Be the first <ChevronRight size={14} />
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-3 gap-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5">
               {filteredStreams.map((stream) => <StreamCard key={stream.id} stream={stream} />)}
             </div>
           )}
         </main>
 
+        {/* Chat sidebar */}
         {chatOpen && <ChatSidebar onClose={() => setChatOpen(false)} />}
       </div>
 
+      {/* Go Live Modal */}
       {showGoLive && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
           style={{background:"rgba(0,0,0,0.88)",backdropFilter:"blur(20px)"}}
           onClick={(e) => e.target === e.currentTarget && setShowGoLive(false)}>
-          <div className="w-full max-w-sm rounded-[28px] p-6 relative overflow-hidden"
-            style={{background:"linear-gradient(135deg,#0f0820,#0a0614)",border:"1px solid rgba(124,58,237,0.3)",boxShadow:"0 40px 100px rgba(124,58,237,0.2)"}}>
+          <div className="w-full sm:max-w-sm rounded-t-[28px] sm:rounded-[28px] p-6 relative overflow-hidden"
+            style={{background:"linear-gradient(135deg,#0f0820,#0a0614)",border:"1px solid rgba(124,58,237,0.3)"}}>
             <div className="absolute top-0 left-0 right-0 h-px"
               style={{background:"linear-gradient(90deg,transparent,rgba(124,58,237,0.9),transparent)"}} />
-            <div className="flex items-center justify-between mb-6">
+            
+            {/* Handle for mobile */}
+            <div className="w-10 h-1 rounded-full mx-auto mb-4 sm:hidden"
+              style={{background:"rgba(255,255,255,0.2)"}} />
+
+            <div className="flex items-center justify-between mb-5">
               <div>
-                <h3 className="text-white font-black text-xl">Start Streaming</h3>
+                <h3 className="text-white font-black text-lg md:text-xl">Start Streaming</h3>
                 <p className="text-violet-400/40 text-xs mt-0.5">Go live in seconds ⚡</p>
               </div>
               <button onClick={() => setShowGoLive(false)}
-                className="w-9 h-9 flex items-center justify-center rounded-2xl text-white/30 hover:text-white liquid-btn"
+                className="w-8 h-8 flex items-center justify-center rounded-xl text-white/30 hover:text-white liquid-btn"
                 style={{background:"rgba(124,58,237,0.1)",border:"1px solid rgba(124,58,237,0.2)"}}>
-                <X size={16} />
+                <X size={15} />
               </button>
             </div>
+
             <div className="space-y-3">
               <input value={streamTitle} onChange={(e) => setStreamTitle(e.target.value)}
                 placeholder="What is your stream about?"
                 className="w-full rounded-2xl px-4 py-3 text-white text-sm placeholder-violet-400/20 outline-none"
                 style={{background:"rgba(124,58,237,0.08)",border:"1px solid rgba(124,58,237,0.2)"}}
                 onKeyDown={(e) => e.key === "Enter" && handleGoLive()} />
+
               <div className="grid grid-cols-2 gap-2">
                 {DISTRICTS.filter(d => d.id !== "all").map((d) => {
                   const Icon = d.icon;
@@ -570,20 +590,16 @@ export default function HomePage() {
                     <button key={d.id} onClick={() => setStreamDistrict(d.id)}
                       className="flex items-center gap-2 px-3 py-2.5 rounded-2xl text-xs font-semibold liquid-btn"
                       style={isSelected ? {
-                        background:`${d.color}20`,
-                        border:`1px solid ${d.color}50`,
-                        color:d.color,
-                        boxShadow:`0 4px 12px ${d.glow}30`
+                        background:`${d.color}20`,border:`1px solid ${d.color}50`,color:d.color,
                       } : {
-                        background:"rgba(255,255,255,0.03)",
-                        border:"1px solid rgba(255,255,255,0.07)",
-                        color:"rgba(255,255,255,0.3)"
+                        background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)",color:"rgba(255,255,255,0.3)"
                       }}>
                       <Icon size={12} />{d.label}
                     </button>
                   );
                 })}
               </div>
+
               <button onClick={handleGoLive} disabled={isCreatingStream}
                 className="w-full text-white font-black py-4 rounded-2xl flex items-center justify-center gap-2.5 text-base liquid-btn neon-pulse disabled:opacity-50"
                 style={{background:"linear-gradient(135deg,#7c3aed,#4f46e5)",boxShadow:"0 8px 32px rgba(124,58,237,0.4)"}}>
