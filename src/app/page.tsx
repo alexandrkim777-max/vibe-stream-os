@@ -284,7 +284,7 @@ export default function HomePage() {
   const checkAuth = async () => {
     const { data } = await supabase.auth.getSession();
     if (!data.session) {
-      router.push("/auth");
+      router.push("/landing");
     } else {
       setUser(data.session.user);
     }
@@ -299,7 +299,7 @@ export default function HomePage() {
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
-    router.push("/auth");
+    router.push("/landing");
   };
 
   const handleGoLive = async () => {
@@ -372,7 +372,6 @@ export default function HomePage() {
       {/* Navbar */}
       <nav className="relative z-10 flex items-center justify-between px-4 md:px-6 py-3 md:py-4"
         style={{borderBottom:"1px solid rgba(124,58,237,0.2)",backdropFilter:"blur(20px)",background:"rgba(6,6,20,0.9)"}}>
-
         <div className="flex items-center gap-2 md:gap-3">
           <div className="w-9 h-9 md:w-10 md:h-10 rounded-2xl flex items-center justify-center float neon-pulse"
             style={{background:"linear-gradient(135deg,#7c3aed,#4f46e5)"}}>
@@ -399,14 +398,11 @@ export default function HomePage() {
             style={{background:"rgba(124,58,237,0.1)",border:"1px solid rgba(124,58,237,0.2)"}}>
             <Search size={15} className="text-violet-400/70" />
           </button>
-
           <button className="relative p-2 md:p-2.5 rounded-xl md:rounded-2xl transition-all hover:scale-110"
             style={{background:"rgba(124,58,237,0.1)",border:"1px solid rgba(124,58,237,0.2)"}}>
             <Bell size={15} className="text-violet-400/70" />
             <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full" style={{background:"#ef4444"}} />
           </button>
-
-          {/* Profile link */}
           <Link href="/profile"
             className="flex items-center gap-2 px-2 md:px-3 py-1.5 rounded-xl md:rounded-2xl transition-all hover:scale-105"
             style={{background:"rgba(124,58,237,0.1)",border:"1px solid rgba(124,58,237,0.2)"}}>
@@ -418,7 +414,6 @@ export default function HomePage() {
               {user?.user_metadata?.username || user?.email?.split("@")[0] || "User"}
             </span>
           </Link>
-
           <button onClick={() => setChatOpen(!chatOpen)}
             className="p-2 md:p-2.5 rounded-xl md:rounded-2xl transition-all hover:scale-110"
             style={chatOpen
@@ -426,7 +421,6 @@ export default function HomePage() {
               : {background:"rgba(124,58,237,0.1)",border:"1px solid rgba(124,58,237,0.2)"}}>
             <MessageSquare size={15} className={chatOpen ? "text-white" : "text-violet-400/70"} />
           </button>
-
           <button onClick={handleSignOut}
             className="p-2 md:p-2.5 rounded-xl md:rounded-2xl transition-all hover:scale-110"
             style={{background:"rgba(239,68,68,0.1)",border:"1px solid rgba(239,68,68,0.2)"}}>
@@ -437,7 +431,6 @@ export default function HomePage() {
 
       <div className="relative z-10 flex flex-1 overflow-hidden">
         <main className="flex-1 overflow-y-auto scrollbar-none px-4 md:px-6 py-4 md:py-6">
-
           <div className="flex gap-2 mb-6 md:mb-8 overflow-x-auto scrollbar-none pb-1">
             {DISTRICTS.map((d) => {
               const Icon = d.icon;
