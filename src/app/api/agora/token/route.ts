@@ -7,12 +7,14 @@ export async function POST(req: NextRequest) {
     const appId = process.env.NEXT_PUBLIC_AGORA_APP_ID;
     const appCertificate = process.env.AGORA_APP_CERTIFICATE;
 
-    console.log("AppId:", appId ? "exists" : "MISSING");
-    console.log("Certificate:", appCertificate ? "exists" : "MISSING");
-    console.log("Channel:", channelName);
+    if (!appId) {
+      return NextResponse.json({ error: "Missing App ID" }, { status: 500 });
+    }
 
-    if (!appId || !appCertificate) {
-      return NextResponse.json({ error: "Missing credentials" }, { status: 500 });
+    // If no certificate - return null token (Test mode)
+    if (!appCertificate) {
+      console.log("No certificate - using Test mode (null token)");
+      return NextResponse.json({ token: null });
     }
 
     const { RtcTokenBuilder, RtcRole } = await import("agora-token");
@@ -32,7 +34,6 @@ export async function POST(req: NextRequest) {
       privilegeExpiredTs
     );
 
-    console.log("Token generated:", token ? "success" : "FAILED");
     return NextResponse.json({ token });
   } catch (e: any) {
     console.error("Token error:", e.message);

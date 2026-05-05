@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import {
   Mic, MicOff, Video, VideoOff, Phone,
-  Users, Send, Heart, Share2, ArrowLeft, Smile, Zap
+  Users, Send, Heart, Share2, ArrowLeft, Smile
 } from "lucide-react";
 import Link from "next/link";
 
@@ -62,16 +62,19 @@ const getAgoraToken = async (channelName: string, role: "publisher" | "subscribe
   const res = await fetch("/api/agora/token", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ channelName, uid: Math.floor(Math.random() * 100000), role }),
+    body: JSON.stringify({
+      channelName,
+      uid: Math.floor(Math.random() * 999999) + 1,
+      role
+    }),
   });
   const data = await res.json();
-  return data.token;
+  return { token: data.token, uid: data.uid, channel: data.channel };
 };
 
 export default function StreamPage() {
   const params = useParams();
   const streamId = params.streamId as string;
-  const viCallChannel = `vicall-${streamId}`;
 
   const [micOn, setMicOn] = useState(true);
   const [camOn, setCamOn] = useState(true);
@@ -90,18 +93,17 @@ export default function StreamPage() {
   const [viewerCount, setViewerCount] = useState(0);
   const [userName, setUserName] = useState("Guest_" + Math.floor(Math.random() * 1000));
 
-  // Agora refs
   const hostClientRef = useRef<any>(null);
   const viCallClientRef = useRef<any>(null);
   const localTracksRef = useRef<any[]>([]);
   const viCallTracksRef = useRef<any[]>([]);
-
-  // Video refs
   const localVideoRef = useRef<HTMLDivElement>(null);
   const callerVideoRef = useRef<HTMLDivElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   const appId = process.env.NEXT_PUBLIC_AGORA_APP_ID!;
+  // Clean channel name for Agora (remove hyphens, max 64 chars)
+  const agoraChannel = streamId.replace(/-/g, "").substring(0, 64);
 
   useEffect(() => {
     setMounted(true);
@@ -130,7 +132,7 @@ export default function StreamPage() {
       }, () => fetchCallRequests())
       .subscribe();
 
-    const streamChannel = supabase.channel(`stream-${streamId}`)
+    const streamChannel = supabase.channel(`stream-viewers-${streamId}`)
       .on("postgres_changes", {
         event: "UPDATE", schema: "public",
         table: "streams", filter: `id=eq.${streamId}`
@@ -175,7 +177,9 @@ export default function StreamPage() {
   };
 
   const updateViewerCount = async (delta: number) => {
-    await supabase.rpc("increment_viewer_count", { stream_id: streamId, delta });
+    try {
+      await supabase.rpc("increment_viewer_count", { stream_id: streamId, delta });
+    } catch(e) { console.error("Viewer count error:", e); }
   };
 
   const sendMessage = async () => {
@@ -186,17 +190,13 @@ export default function StreamPage() {
     setMessage("");
   };
 
-  // ─── HOST: Go Live ───────────────────────────────
   const joinAsHost = async () => {
     setIsLoading(true);
     try {
       const AgoraRTC = (await import("agora-rtc-sdk-ng")).default;
-
-      // Main stream client
       const client = AgoraRTC.createClient({ mode: "live", codec: "vp8" });
       hostClientRef.current = client;
 
-      // Listen for viCall guests joining
       client.on("user-published", async (user: any, mediaType: any) => {
         await client.subscribe(user, mediaType);
         if (mediaType === "video" && callerVideoRef.current) {
@@ -210,8 +210,8 @@ export default function StreamPage() {
       client.on("user-left", () => setActiveCaller(null));
 
       await client.setClientRole("host");
-      const token = await getAgoraToken(streamId, "publisher");
-      await client.join(appId, streamId, token, null);
+      const { token, uid } = await getAgoraToken(agoraChannel, "publisher");
+      await client.join(appId, agoraChannel, token, uid);
 
       const [audioTrack, videoTrack] = await AgoraRTC.createMicrophoneAndCameraTracks();
       localTracksRef.current = [audioTrack, videoTrack];
@@ -232,7 +232,6 @@ export default function StreamPage() {
     setIsLoading(false);
   };
 
-  // ─── VIEWER: Watch ────────────────────────────────
   const joinAsViewer = async () => {
     setIsLoading(true);
     try {
@@ -249,20 +248,20 @@ export default function StreamPage() {
       });
 
       await client.setClientRole("audience", { level: 1 });
-      const token = await getAgoraToken(streamId, "subscriber");
-      await client.join(appId, streamId, token, null);
+      const { token, uid } = await getAgoraToken(agoraChannel, "subscriber");
+      await client.join(appId, agoraChannel, token, uid);
 
       setIsJoined(true);
       await updateViewerCount(1);
 
-      // Listen for call acceptance
-      supabase.channel(`myrequest-${streamId}-${userName}`)
+      const myName = userName;
+      supabase.channel(`myrequest-${streamId}-${myName}`)
         .on("postgres_changes", {
           event: "UPDATE", schema: "public",
           table: "call_requests",
           filter: `stream_id=eq.${streamId}`
         }, async (payload) => {
-          if (payload.new.status === "accepted" && payload.new.caller_name === userName) {
+          if (payload.new.status === "accepted" && payload.new.caller_name === myName) {
             await startViCall();
           }
         })
@@ -275,18 +274,15 @@ export default function StreamPage() {
     setIsLoading(false);
   };
 
-  // ─── VIEWER: Start viCall after acceptance ────────
   const startViCall = async () => {
     try {
       const AgoraRTC = (await import("agora-rtc-sdk-ng")).default;
-
-      // Join the SAME main channel as host
       const viClient = AgoraRTC.createClient({ mode: "live", codec: "vp8" });
       viCallClientRef.current = viClient;
 
       await viClient.setClientRole("host");
-      const token = await getAgoraToken(streamId, "publisher");
-      await viClient.join(appId, streamId, token, null);
+      const { token, uid } = await getAgoraToken(agoraChannel, "publisher");
+      await viClient.join(appId, agoraChannel, token, uid);
 
       const [audioTrack, videoTrack] = await AgoraRTC.createMicrophoneAndCameraTracks();
       viCallTracksRef.current = [audioTrack, videoTrack];
@@ -300,11 +296,11 @@ export default function StreamPage() {
       });
 
     } catch (e: any) {
-      console.error("viCall error:", e);
+      console.error("viCall error:", e.message);
+      alert(`viCall error: ${e.message}`);
     }
   };
 
-  // ─── REQUEST CALL ─────────────────────────────────
   const requestCall = async () => {
     setCallStatus("pending");
     await supabase.from("call_requests").insert({
@@ -316,7 +312,6 @@ export default function StreamPage() {
     });
   };
 
-  // ─── HOST: Accept call ────────────────────────────
   const acceptCall = async (req: any) => {
     await supabase.from("call_requests").update({ status: "accepted" }).eq("id", req.id);
     setActiveCaller(req.caller_name);
@@ -331,10 +326,10 @@ export default function StreamPage() {
     await supabase.from("call_requests").update({ status: "rejected" }).eq("id", req.id);
   };
 
-  // ─── END CALL ─────────────────────────────────────
   const endCall = async () => {
     viCallTracksRef.current.forEach(t => { try { t.stop(); t.close(); } catch(e) {} });
     try { await viCallClientRef.current?.leave(); } catch(e) {}
+    viCallTracksRef.current = [];
     setActiveCaller(null);
     setCallStatus("idle");
     await supabase.from("messages").insert({
@@ -342,13 +337,15 @@ export default function StreamPage() {
     });
   };
 
-  // ─── END STREAM ───────────────────────────────────
   const endStream = async () => {
     if (!confirm("End the stream?")) return;
     await cleanup();
-    await supabase.from("streams").update({ status: "ended", ended_at: new Date().toISOString() }).eq("id", streamId);
+    await supabase.from("streams")
+      .update({ status: "ended", ended_at: new Date().toISOString() })
+      .eq("id", streamId);
     await supabase.from("messages").insert({
-      stream_id: streamId, user_name: "System", content: "Stream ended. Thanks for watching!"
+      stream_id: streamId, user_name: "System",
+      content: "Stream ended. Thanks for watching! 👋"
     });
     setIsJoined(false);
     setIsHost(false);
@@ -363,13 +360,13 @@ export default function StreamPage() {
   };
 
   const toggleMic = async () => {
-    const tracks = isHost ? localTracksRef.current : viCallTracksRef.current;
+    const tracks = callStatus === "accepted" ? viCallTracksRef.current : localTracksRef.current;
     const t = tracks[0];
     if (t) { await t.setEnabled(!micOn); setMicOn(!micOn); }
   };
 
   const toggleCam = async () => {
-    const tracks = isHost ? localTracksRef.current : viCallTracksRef.current;
+    const tracks = callStatus === "accepted" ? viCallTracksRef.current : localTracksRef.current;
     const t = tracks[1];
     if (t) { await t.setEnabled(!camOn); setCamOn(!camOn); }
   };
@@ -405,7 +402,6 @@ export default function StreamPage() {
         <Sparkles />
       </div>
 
-      {/* Navbar */}
       <nav className="relative z-10 flex items-center justify-between px-4 md:px-5 py-3"
         style={{borderBottom:"1px solid rgba(124,58,237,0.2)",background:"rgba(6,6,20,0.9)",backdropFilter:"blur(20px)"}}>
         <Link href="/" className="flex items-center gap-2 group">
@@ -421,7 +417,8 @@ export default function StreamPage() {
               style={{background:"rgba(239,68,68,0.15)",border:"1px solid rgba(239,68,68,0.4)"}}>
               <div className="relative w-2 h-2">
                 <div className="w-2 h-2 rounded-full bg-red-500" />
-                <div className="absolute inset-0 rounded-full bg-red-400" style={{animation:"pulseRing 1.5s ease-in-out infinite"}} />
+                <div className="absolute inset-0 rounded-full bg-red-400"
+                  style={{animation:"pulseRing 1.5s ease-in-out infinite"}} />
               </div>
               <span className="text-red-400 text-xs font-bold uppercase tracking-widest">Live</span>
             </div>
@@ -459,15 +456,11 @@ export default function StreamPage() {
         </div>
       </nav>
 
-      {/* Body */}
       <div className="relative z-10 flex flex-1 overflow-hidden">
         <div className="flex-1 flex flex-col min-h-0">
-
-          {/* Video area */}
           <div className={`relative flex-1 min-h-0 ${activeCaller ? "grid grid-cols-2 gap-1.5 p-1.5" : ""}`}
             style={{background:"linear-gradient(135deg,#0d0628,#080818)"}}>
 
-            {/* Host/Main video */}
             <div className={`relative overflow-hidden ${activeCaller ? "rounded-2xl" : ""}`}
               style={!activeCaller ? {minHeight:"350px"} : {}}>
               <div ref={localVideoRef} className="absolute inset-0" />
@@ -493,7 +486,9 @@ export default function StreamPage() {
                       <button onClick={joinAsHost} disabled={isLoading}
                         className="flex items-center gap-2 text-white font-bold px-5 py-3 rounded-2xl disabled:opacity-40 liquid-btn neon"
                         style={{background:"linear-gradient(135deg,#7c3aed,#4f46e5)"}}>
-                        {isLoading ? <span className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" /> : <><Video size={16} />Go Live</>}
+                        {isLoading
+                          ? <span className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                          : <><Video size={16} />Go Live</>}
                       </button>
                       <button onClick={joinAsViewer} disabled={isLoading}
                         className="flex items-center gap-2 text-white/70 font-semibold px-5 py-3 rounded-2xl disabled:opacity-40 liquid-btn"
@@ -518,7 +513,6 @@ export default function StreamPage() {
               )}
             </div>
 
-            {/* Guest split screen */}
             {activeCaller && (
               <div className="relative rounded-2xl overflow-hidden flex items-center justify-center"
                 style={{background:"linear-gradient(135deg,#0a2818,#071a14)",border:"1px solid rgba(16,185,129,0.2)"}}>
@@ -547,23 +541,25 @@ export default function StreamPage() {
             )}
           </div>
 
-          {/* Controls */}
           <div className="flex items-center justify-center gap-2 md:gap-3 px-3 py-3 flex-wrap flex-shrink-0"
             style={{background:"rgba(6,6,20,0.95)",backdropFilter:"blur(20px)",borderTop:"1px solid rgba(124,58,237,0.15)"}}>
 
             <button onClick={toggleMic} className="ctrl-btn"
-              style={{background: micOn ? "rgba(124,58,237,0.12)" : "rgba(239,68,68,0.4)", border:`1px solid ${micOn ? "rgba(124,58,237,0.3)" : "rgba(239,68,68,0.5)"}`}}>
+              style={{background: micOn ? "rgba(124,58,237,0.12)" : "rgba(239,68,68,0.4)",
+                border:`1px solid ${micOn ? "rgba(124,58,237,0.3)" : "rgba(239,68,68,0.5)"}`}}>
               {micOn ? <Mic size={18} className="text-violet-300" /> : <MicOff size={18} className="text-white" />}
             </button>
 
             <button onClick={toggleCam} className="ctrl-btn"
-              style={{background: camOn ? "rgba(124,58,237,0.12)" : "rgba(239,68,68,0.4)", border:`1px solid ${camOn ? "rgba(124,58,237,0.3)" : "rgba(239,68,68,0.5)"}`}}>
+              style={{background: camOn ? "rgba(124,58,237,0.12)" : "rgba(239,68,68,0.4)",
+                border:`1px solid ${camOn ? "rgba(124,58,237,0.3)" : "rgba(239,68,68,0.5)"}`}}>
               {camOn ? <Video size={18} className="text-violet-300" /> : <VideoOff size={18} className="text-white" />}
             </button>
 
             <button onClick={() => { setLiked(!liked); setLikeCount(p => liked ? p-1 : p+1); }}
               className="ctrl-btn"
-              style={{background: liked ? "rgba(236,72,153,0.35)" : "rgba(124,58,237,0.12)", border:`1px solid ${liked ? "rgba(236,72,153,0.5)" : "rgba(124,58,237,0.3)"}`}}>
+              style={{background: liked ? "rgba(236,72,153,0.35)" : "rgba(124,58,237,0.12)",
+                border:`1px solid ${liked ? "rgba(236,72,153,0.5)" : "rgba(124,58,237,0.3)"}`}}>
               <Heart size={18} className={liked ? "text-pink-300 fill-pink-300" : "text-violet-300"} />
             </button>
 
@@ -622,7 +618,6 @@ export default function StreamPage() {
           </div>
         </div>
 
-        {/* Chat */}
         <div className="w-64 md:w-72 flex flex-col scrollbar-none flex-shrink-0"
           style={{background:"rgba(6,6,20,0.9)",backdropFilter:"blur(24px)",borderLeft:"1px solid rgba(124,58,237,0.15)"}}>
           <div className="px-3 md:px-4 py-3 flex items-center justify-between flex-shrink-0"
@@ -652,7 +647,8 @@ export default function StreamPage() {
             <div ref={chatEndRef} />
           </div>
 
-          <div className="px-3 py-3 flex-shrink-0" style={{borderTop:"1px solid rgba(124,58,237,0.15)"}}>
+          <div className="px-3 py-3 flex-shrink-0"
+            style={{borderTop:"1px solid rgba(124,58,237,0.15)"}}>
             <div className="flex gap-2 rounded-2xl px-3 py-2"
               style={{background:"rgba(124,58,237,0.08)",border:"1px solid rgba(124,58,237,0.2)"}}>
               <input value={message} onChange={(e) => setMessage(e.target.value)}
@@ -667,7 +663,6 @@ export default function StreamPage() {
         </div>
       </div>
 
-      {/* Call requests modal */}
       {showCallRequests && (
         <div className="fixed inset-0 z-50 flex items-end justify-center p-4"
           style={{background:"rgba(0,0,0,0.85)",backdropFilter:"blur(16px)"}}
