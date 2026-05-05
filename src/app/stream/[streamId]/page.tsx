@@ -62,7 +62,7 @@ const getAgoraToken = async (channelName: string, role: "publisher" | "subscribe
   const res = await fetch("/api/agora/token", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ channelName, uid: 0, role }),
+    body: JSON.stringify({ channelName, uid: Math.floor(Math.random() * 100000), role }),
   });
   const data = await res.json();
   return data.token;
@@ -71,10 +71,12 @@ const getAgoraToken = async (channelName: string, role: "publisher" | "subscribe
 export default function StreamPage() {
   const params = useParams();
   const streamId = params.streamId as string;
+  const viCallChannel = `vicall-${streamId}`;
+
   const [micOn, setMicOn] = useState(true);
   const [camOn, setCamOn] = useState(true);
   const [liked, setLiked] = useState(false);
-  const [likeCount, setLikeCount] = useState(1284);
+  const [likeCount, setLikeCount] = useState(0);
   const [message, setMessage] = useState("");
   const [chatMessages, setChatMessages] = useState<any[]>([]);
   const [callRequests, setCallRequests] = useState<any[]>([]);
@@ -84,12 +86,19 @@ export default function StreamPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [isHost, setIsHost] = useState(false);
-  const [callStatus, setCallStatus] = useState<"idle" | "pending" | "accepted">("idle");
+  const [callStatus, setCallStatus] = useState<"idle"|"pending"|"accepted">("idle");
+  const [viewerCount, setViewerCount] = useState(0);
   const [userName, setUserName] = useState("Guest_" + Math.floor(Math.random() * 1000));
+
+  // Agora refs
+  const hostClientRef = useRef<any>(null);
+  const viCallClientRef = useRef<any>(null);
+  const localTracksRef = useRef<any[]>([]);
+  const viCallTracksRef = useRef<any[]>([]);
+
+  // Video refs
   const localVideoRef = useRef<HTMLDivElement>(null);
   const callerVideoRef = useRef<HTMLDivElement>(null);
-  const clientRef = useRef<any>(null);
-  const localTracksRef = useRef<any[]>([]);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   const appId = process.env.NEXT_PUBLIC_AGORA_APP_ID!;
@@ -102,33 +111,50 @@ export default function StreamPage() {
         setUserName(u.user_metadata?.username || u.email?.split("@")[0] || "Guest");
       }
     });
+
     fetchMessages();
     fetchCallRequests();
+    fetchViewerCount();
 
-    const msgChannel = supabase.channel(`stream-chat-${streamId}`)
+    const msgChannel = supabase.channel(`chat-${streamId}`)
       .on("postgres_changes", {
-        event: "INSERT", schema: "public", table: "messages",
-        filter: `stream_id=eq.${streamId}`
+        event: "INSERT", schema: "public",
+        table: "messages", filter: `stream_id=eq.${streamId}`
       }, (payload) => setChatMessages(prev => [...prev, payload.new]))
       .subscribe();
 
-    const callChannel = supabase.channel(`call-requests-${streamId}`)
+    const callChannel = supabase.channel(`calls-${streamId}`)
       .on("postgres_changes", {
-        event: "*", schema: "public", table: "call_requests",
-        filter: `stream_id=eq.${streamId}`
+        event: "*", schema: "public",
+        table: "call_requests", filter: `stream_id=eq.${streamId}`
       }, () => fetchCallRequests())
+      .subscribe();
+
+    const streamChannel = supabase.channel(`stream-${streamId}`)
+      .on("postgres_changes", {
+        event: "UPDATE", schema: "public",
+        table: "streams", filter: `id=eq.${streamId}`
+      }, (payload) => setViewerCount(payload.new.viewer_count || 0))
       .subscribe();
 
     return () => {
       supabase.removeChannel(msgChannel);
       supabase.removeChannel(callChannel);
-      leaveStream();
+      supabase.removeChannel(streamChannel);
+      cleanup();
     };
   }, [streamId]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chatMessages]);
+
+  const cleanup = async () => {
+    localTracksRef.current.forEach(t => { try { t.stop(); t.close(); } catch(e) {} });
+    viCallTracksRef.current.forEach(t => { try { t.stop(); t.close(); } catch(e) {} });
+    try { await hostClientRef.current?.leave(); } catch(e) {}
+    try { await viCallClientRef.current?.leave(); } catch(e) {}
+  };
 
   const fetchMessages = async () => {
     const { data } = await supabase.from("messages").select("*")
@@ -138,8 +164,18 @@ export default function StreamPage() {
 
   const fetchCallRequests = async () => {
     const { data } = await supabase.from("call_requests").select("*")
-      .eq("stream_id", streamId).eq("status", "pending").order("created_at", { ascending: true });
+      .eq("stream_id", streamId).eq("status", "pending")
+      .order("created_at", { ascending: true });
     if (data) setCallRequests(data);
+  };
+
+  const fetchViewerCount = async () => {
+    const { data } = await supabase.from("streams").select("viewer_count").eq("id", streamId).single();
+    if (data) setViewerCount(data.viewer_count || 0);
+  };
+
+  const updateViewerCount = async (delta: number) => {
+    await supabase.rpc("increment_viewer_count", { stream_id: streamId, delta });
   };
 
   const sendMessage = async () => {
@@ -150,61 +186,28 @@ export default function StreamPage() {
     setMessage("");
   };
 
-  const requestCall = async () => {
-    setCallStatus("pending");
-    await supabase.from("call_requests").insert({
-      stream_id: streamId, caller_name: userName, status: "pending"
-    });
-    await supabase.from("messages").insert({
-      stream_id: streamId, user_name: "System",
-      content: `📞 ${userName} wants to join the stream!`
-    });
-  };
-
-  const acceptCall = async (req: any) => {
-    await supabase.from("call_requests").update({ status: "accepted" }).eq("id", req.id);
-    setActiveCaller(req.caller_name);
-    setShowCallRequests(false);
-    await supabase.from("messages").insert({
-      stream_id: streamId, user_name: "System",
-      content: `🎉 ${req.caller_name} joined the stream!`
-    });
-  };
-
-  const rejectCall = async (req: any) => {
-    await supabase.from("call_requests").update({ status: "rejected" }).eq("id", req.id);
-    await supabase.from("messages").insert({
-      stream_id: streamId, user_name: "System",
-      content: `❌ ${req.caller_name} was declined`
-    });
-  };
-
-  const endCall = async () => {
-    setActiveCaller(null);
-    await supabase.from("messages").insert({
-      stream_id: streamId, user_name: "System", content: "📞 Call ended"
-    });
-  };
-
-  const joinStream = async () => {
+  // ─── HOST: Go Live ───────────────────────────────
+  const joinAsHost = async () => {
     setIsLoading(true);
     try {
       const AgoraRTC = (await import("agora-rtc-sdk-ng")).default;
-      const client = AgoraRTC.createClient({ mode: "live", codec: "vp8" });
-      clientRef.current = client;
 
+      // Main stream client
+      const client = AgoraRTC.createClient({ mode: "live", codec: "vp8" });
+      hostClientRef.current = client;
+
+      // Listen for viCall guests joining
       client.on("user-published", async (user: any, mediaType: any) => {
         await client.subscribe(user, mediaType);
         if (mediaType === "video" && callerVideoRef.current) {
           user.videoTrack?.play(callerVideoRef.current);
-          setActiveCaller(user.uid.toString());
+          setActiveCaller(user.uid?.toString() || "Guest");
         }
         if (mediaType === "audio") user.audioTrack?.play();
       });
 
-      client.on("user-unpublished", (user: any) => {
-        setActiveCaller(null);
-      });
+      client.on("user-unpublished", () => setActiveCaller(null));
+      client.on("user-left", () => setActiveCaller(null));
 
       await client.setClientRole("host");
       const token = await getAgoraToken(streamId, "publisher");
@@ -219,22 +222,23 @@ export default function StreamPage() {
       setIsHost(true);
 
       await supabase.from("messages").insert({
-        stream_id: streamId, user_name: "System",
-        content: `🔴 Stream is live!`
+        stream_id: streamId, user_name: "System", content: "🔴 Stream started!"
       });
+
     } catch (e: any) {
       console.error(e);
-      alert(`Camera error: ${e.message}`);
+      alert(`Error: ${e.message}`);
     }
     setIsLoading(false);
   };
 
+  // ─── VIEWER: Watch ────────────────────────────────
   const joinAsViewer = async () => {
     setIsLoading(true);
     try {
       const AgoraRTC = (await import("agora-rtc-sdk-ng")).default;
       const client = AgoraRTC.createClient({ mode: "live", codec: "vp8" });
-      clientRef.current = client;
+      hostClientRef.current = client;
 
       client.on("user-published", async (user: any, mediaType: any) => {
         await client.subscribe(user, mediaType);
@@ -247,36 +251,19 @@ export default function StreamPage() {
       await client.setClientRole("audience", { level: 1 });
       const token = await getAgoraToken(streamId, "subscriber");
       await client.join(appId, streamId, token, null);
+
       setIsJoined(true);
+      await updateViewerCount(1);
 
       // Listen for call acceptance
-      const myName = userName;
-      supabase.channel(`my-call-${streamId}-${myName}`)
+      supabase.channel(`myrequest-${streamId}-${userName}`)
         .on("postgres_changes", {
-          event: "UPDATE",
-          schema: "public",
+          event: "UPDATE", schema: "public",
           table: "call_requests",
           filter: `stream_id=eq.${streamId}`
         }, async (payload) => {
-          if (
-            payload.new.status === "accepted" &&
-            payload.new.caller_name === myName
-          ) {
-            setCallStatus("accepted");
-            try {
-              await client.setClientRole("host");
-              const newToken = await getAgoraToken(streamId, "publisher");
-              await client.renewToken(newToken);
-              const [audioTrack, videoTrack] = await AgoraRTC.createMicrophoneAndCameraTracks();
-              localTracksRef.current = [audioTrack, videoTrack];
-              await client.publish([audioTrack, videoTrack]);
-              await supabase.from("messages").insert({
-                stream_id: streamId, user_name: "System",
-                content: `📹 ${myName} is now live on screen!`
-              });
-            } catch (e: any) {
-              console.error("Call publish error:", e);
-            }
+          if (payload.new.status === "accepted" && payload.new.caller_name === userName) {
+            await startViCall();
           }
         })
         .subscribe();
@@ -288,21 +275,102 @@ export default function StreamPage() {
     setIsLoading(false);
   };
 
+  // ─── VIEWER: Start viCall after acceptance ────────
+  const startViCall = async () => {
+    try {
+      const AgoraRTC = (await import("agora-rtc-sdk-ng")).default;
+
+      // Join the SAME main channel as host
+      const viClient = AgoraRTC.createClient({ mode: "live", codec: "vp8" });
+      viCallClientRef.current = viClient;
+
+      await viClient.setClientRole("host");
+      const token = await getAgoraToken(streamId, "publisher");
+      await viClient.join(appId, streamId, token, null);
+
+      const [audioTrack, videoTrack] = await AgoraRTC.createMicrophoneAndCameraTracks();
+      viCallTracksRef.current = [audioTrack, videoTrack];
+      await viClient.publish([audioTrack, videoTrack]);
+
+      setCallStatus("accepted");
+
+      await supabase.from("messages").insert({
+        stream_id: streamId, user_name: "System",
+        content: `📹 ${userName} is now live on screen!`
+      });
+
+    } catch (e: any) {
+      console.error("viCall error:", e);
+    }
+  };
+
+  // ─── REQUEST CALL ─────────────────────────────────
+  const requestCall = async () => {
+    setCallStatus("pending");
+    await supabase.from("call_requests").insert({
+      stream_id: streamId, caller_name: userName, status: "pending"
+    });
+    await supabase.from("messages").insert({
+      stream_id: streamId, user_name: "System",
+      content: `📞 ${userName} wants to join!`
+    });
+  };
+
+  // ─── HOST: Accept call ────────────────────────────
+  const acceptCall = async (req: any) => {
+    await supabase.from("call_requests").update({ status: "accepted" }).eq("id", req.id);
+    setActiveCaller(req.caller_name);
+    setShowCallRequests(false);
+    await supabase.from("messages").insert({
+      stream_id: streamId, user_name: "System",
+      content: `🎉 ${req.caller_name} joined the stream!`
+    });
+  };
+
+  const rejectCall = async (req: any) => {
+    await supabase.from("call_requests").update({ status: "rejected" }).eq("id", req.id);
+  };
+
+  // ─── END CALL ─────────────────────────────────────
+  const endCall = async () => {
+    viCallTracksRef.current.forEach(t => { try { t.stop(); t.close(); } catch(e) {} });
+    try { await viCallClientRef.current?.leave(); } catch(e) {}
+    setActiveCaller(null);
+    setCallStatus("idle");
+    await supabase.from("messages").insert({
+      stream_id: streamId, user_name: "System", content: "📞 Call ended"
+    });
+  };
+
+  // ─── END STREAM ───────────────────────────────────
+  const endStream = async () => {
+    if (!confirm("End the stream?")) return;
+    await cleanup();
+    await supabase.from("streams").update({ status: "ended", ended_at: new Date().toISOString() }).eq("id", streamId);
+    await supabase.from("messages").insert({
+      stream_id: streamId, user_name: "System", content: "Stream ended. Thanks for watching!"
+    });
+    setIsJoined(false);
+    setIsHost(false);
+  };
+
   const leaveStream = async () => {
-    localTracksRef.current.forEach(t => { t.stop(); t.close(); });
-    await clientRef.current?.leave();
+    await cleanup();
+    if (!isHost) await updateViewerCount(-1);
     setIsJoined(false);
     setIsHost(false);
     setCallStatus("idle");
   };
 
   const toggleMic = async () => {
-    const t = localTracksRef.current[0];
+    const tracks = isHost ? localTracksRef.current : viCallTracksRef.current;
+    const t = tracks[0];
     if (t) { await t.setEnabled(!micOn); setMicOn(!micOn); }
   };
 
   const toggleCam = async () => {
-    const t = localTracksRef.current[1];
+    const tracks = isHost ? localTracksRef.current : viCallTracksRef.current;
+    const t = tracks[1];
     if (t) { await t.setEnabled(!camOn); setCamOn(!camOn); }
   };
 
@@ -337,16 +405,17 @@ export default function StreamPage() {
         <Sparkles />
       </div>
 
-      <nav className="relative z-10 flex items-center justify-between px-5 py-3"
+      {/* Navbar */}
+      <nav className="relative z-10 flex items-center justify-between px-4 md:px-5 py-3"
         style={{borderBottom:"1px solid rgba(124,58,237,0.2)",background:"rgba(6,6,20,0.9)",backdropFilter:"blur(20px)"}}>
-        <Link href="/" className="flex items-center gap-2.5 group">
+        <Link href="/" className="flex items-center gap-2 group">
           <div className="ctrl-btn" style={{background:"rgba(124,58,237,0.15)",border:"1px solid rgba(124,58,237,0.3)",width:36,height:36,borderRadius:12}}>
             <ArrowLeft size={15} className="text-violet-400" />
           </div>
-          <span className="text-white/40 text-sm group-hover:text-white/70 transition-colors">Back</span>
+          <span className="text-white/40 text-sm group-hover:text-white/70 hidden sm:block">Back</span>
         </Link>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 md:gap-3">
           {isJoined && isHost && (
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-full"
               style={{background:"rgba(239,68,68,0.15)",border:"1px solid rgba(239,68,68,0.4)"}}>
@@ -374,35 +443,39 @@ export default function StreamPage() {
           <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full"
             style={{background:"rgba(124,58,237,0.1)",border:"1px solid rgba(124,58,237,0.25)"}}>
             <Users size={11} className="text-violet-400" />
-            <span className="text-violet-300 text-xs font-semibold">312</span>
+            <span className="text-violet-300 text-xs font-semibold">{viewerCount}</span>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
-          <div className="px-3 py-1.5 rounded-full text-xs font-semibold"
+          <div className="px-2 md:px-3 py-1.5 rounded-full text-xs font-semibold hidden sm:block"
             style={{background:"rgba(124,58,237,0.15)",border:"1px solid rgba(124,58,237,0.3)",color:"rgba(167,139,250,0.9)"}}>
             {userName}
           </div>
-          <button className="ctrl-btn text-white/40 hover:text-violet-400 transition-colors"
+          <button className="ctrl-btn text-white/40 hover:text-violet-400"
             style={{background:"rgba(124,58,237,0.1)",border:"1px solid rgba(124,58,237,0.2)",width:36,height:36,borderRadius:12}}>
             <Share2 size={14} />
           </button>
         </div>
       </nav>
 
+      {/* Body */}
       <div className="relative z-10 flex flex-1 overflow-hidden">
         <div className="flex-1 flex flex-col min-h-0">
-          <div className={`relative flex-1 min-h-0 ${activeCaller ? "grid grid-cols-2 gap-1.5 p-1.5" : ""}`}
-            style={{background:"linear-gradient(135deg,#0d0628 0%,#080818 100%)"}}>
 
+          {/* Video area */}
+          <div className={`relative flex-1 min-h-0 ${activeCaller ? "grid grid-cols-2 gap-1.5 p-1.5" : ""}`}
+            style={{background:"linear-gradient(135deg,#0d0628,#080818)"}}>
+
+            {/* Host/Main video */}
             <div className={`relative overflow-hidden ${activeCaller ? "rounded-2xl" : ""}`}
-              style={!activeCaller ? {minHeight:"400px"} : {}}>
+              style={!activeCaller ? {minHeight:"350px"} : {}}>
               <div ref={localVideoRef} className="absolute inset-0" />
 
               {!isJoined && (
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="text-center px-8">
-                    <div className="relative w-32 h-32 mx-auto mb-8 float">
+                  <div className="text-center px-6">
+                    <div className="relative w-28 h-28 mx-auto mb-6 float">
                       <div className="absolute -inset-4 rounded-full opacity-30"
                         style={{background:"radial-gradient(circle,#7c3aed,transparent)",filter:"blur(20px)"}} />
                       <div className="absolute -inset-2 rounded-full opacity-20 animate-ping"
@@ -412,36 +485,31 @@ export default function StreamPage() {
                         🎙
                       </div>
                     </div>
-                    <p className="text-white/90 font-bold text-xl mb-2">Evening Stream</p>
-                    <p className="text-white/30 text-sm mb-8">
+                    <p className="text-white/90 font-bold text-lg mb-2">VibeCity Stream</p>
+                    <p className="text-white/30 text-sm mb-6">
                       You: <span className="text-violet-400 font-semibold">{userName}</span>
                     </p>
-                    <div className="flex gap-3 justify-center">
-                      <button onClick={joinStream} disabled={isLoading}
-                        className="flex items-center gap-2.5 text-white font-bold px-6 py-3.5 rounded-2xl disabled:opacity-40 liquid-btn neon"
+                    <div className="flex gap-3 justify-center flex-wrap">
+                      <button onClick={joinAsHost} disabled={isLoading}
+                        className="flex items-center gap-2 text-white font-bold px-5 py-3 rounded-2xl disabled:opacity-40 liquid-btn neon"
                         style={{background:"linear-gradient(135deg,#7c3aed,#4f46e5)"}}>
-                        {isLoading ? (
-                          <span className="w-5 h-5 rounded-full border-2 border-white/30 border-t-white animate-spin" />
-                        ) : (
-                          <><Video size={18} />Go Live</>
-                        )}
+                        {isLoading ? <span className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" /> : <><Video size={16} />Go Live</>}
                       </button>
                       <button onClick={joinAsViewer} disabled={isLoading}
-                        className="flex items-center gap-2.5 text-white/70 font-semibold px-6 py-3.5 rounded-2xl disabled:opacity-40 liquid-btn"
+                        className="flex items-center gap-2 text-white/70 font-semibold px-5 py-3 rounded-2xl disabled:opacity-40 liquid-btn"
                         style={{background:"rgba(124,58,237,0.15)",border:"1px solid rgba(124,58,237,0.3)"}}>
-                        <Users size={18} />Watch
+                        <Users size={16} />Watch
                       </button>
                     </div>
-                    <p className="text-white/15 text-xs mt-4">Viewers can call into your stream</p>
                   </div>
                 </div>
               )}
 
               {isJoined && (
-                <div className="absolute top-4 left-4">
-                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold"
+                <div className="absolute top-3 left-3">
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold"
                     style={isHost
-                      ? {background:"rgba(239,68,68,0.2)",border:"1px solid rgba(239,68,68,0.4)",color:"rgb(252,165,165)"}
+                      ? {background:"rgba(239,68,68,0.2)",border:"1px solid rgba(239,68,68,0.5)",color:"rgb(252,165,165)"}
                       : {background:"rgba(124,58,237,0.2)",border:"1px solid rgba(124,58,237,0.4)",color:"rgb(167,139,250)"}}>
                     <div className={`w-1.5 h-1.5 rounded-full ${isHost ? "bg-red-400 animate-pulse" : "bg-violet-400"}`} />
                     {isHost ? "HOST" : "VIEWER"}
@@ -450,6 +518,7 @@ export default function StreamPage() {
               )}
             </div>
 
+            {/* Guest split screen */}
             {activeCaller && (
               <div className="relative rounded-2xl overflow-hidden flex items-center justify-center"
                 style={{background:"linear-gradient(135deg,#0a2818,#071a14)",border:"1px solid rgba(16,185,129,0.2)"}}>
@@ -457,30 +526,29 @@ export default function StreamPage() {
                   style={{background:"radial-gradient(circle at center,rgba(16,185,129,0.1),transparent 70%)"}} />
                 <div ref={callerVideoRef} className="absolute inset-0" />
                 <div className="text-center relative z-10">
-                  <div className="w-20 h-20 rounded-2xl flex items-center justify-center text-3xl font-bold mx-auto mb-3 text-white"
-                    style={{background:"linear-gradient(135deg,#059669,#0d9488)",boxShadow:"0 8px 32px rgba(5,150,105,0.5)"}}>
-                    {typeof activeCaller === "string" ? activeCaller[0]?.toUpperCase() : "G"}
+                  <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-2xl font-bold mx-auto mb-2 text-white"
+                    style={{background:"linear-gradient(135deg,#059669,#0d9488)"}}>
+                    {activeCaller[0]?.toUpperCase() || "G"}
                   </div>
-                  <p className="text-white/80 text-sm font-semibold">Guest</p>
-                  <p className="text-emerald-400/60 text-xs mt-1">Live</p>
+                  <p className="text-white/70 text-sm font-semibold">{activeCaller}</p>
                 </div>
                 <div className="absolute top-3 left-3">
                   <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold"
-                    style={{background:"rgba(16,185,129,0.2)",border:"1px solid rgba(16,185,129,0.4)",color:"rgb(52,211,153)"}}>
-                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    GUEST
+                    style={{background:"rgba(16,185,129,0.2)",border:"1px solid rgba(16,185,129,0.5)",color:"rgb(52,211,153)"}}>
+                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />GUEST
                   </div>
                 </div>
                 <button onClick={endCall}
-                  className="absolute top-3 right-3 w-9 h-9 rounded-full flex items-center justify-center transition-all hover:scale-110"
-                  style={{background:"rgba(239,68,68,0.6)",border:"1px solid rgba(239,68,68,0.4)"}}>
-                  <Phone size={13} className="text-white rotate-[135deg]" />
+                  className="absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center"
+                  style={{background:"rgba(239,68,68,0.6)"}}>
+                  <Phone size={12} className="text-white rotate-[135deg]" />
                 </button>
               </div>
             )}
           </div>
 
-          <div className="flex items-center justify-center gap-3 px-4 py-3.5 flex-wrap flex-shrink-0"
+          {/* Controls */}
+          <div className="flex items-center justify-center gap-2 md:gap-3 px-3 py-3 flex-wrap flex-shrink-0"
             style={{background:"rgba(6,6,20,0.95)",backdropFilter:"blur(20px)",borderTop:"1px solid rgba(124,58,237,0.15)"}}>
 
             <button onClick={toggleMic} className="ctrl-btn"
@@ -499,43 +567,53 @@ export default function StreamPage() {
               <Heart size={18} className={liked ? "text-pink-300 fill-pink-300" : "text-violet-300"} />
             </button>
 
-            <span className="text-violet-400/50 text-xs font-semibold tabular-nums">{likeCount.toLocaleString()}</span>
+            <span className="text-violet-400/50 text-xs font-semibold">{likeCount.toLocaleString()}</span>
 
             {isHost ? (
               <button onClick={() => setShowCallRequests(!showCallRequests)}
-                className="relative flex items-center gap-2 text-white font-bold px-5 py-2.5 rounded-2xl text-sm liquid-btn"
-                style={{background:"linear-gradient(135deg,#059669,#0d9488)",boxShadow:"0 8px 24px rgba(5,150,105,0.4)"}}>
+                className="relative flex items-center gap-2 text-white font-bold px-4 py-2.5 rounded-2xl text-sm liquid-btn"
+                style={{background:"linear-gradient(135deg,#059669,#0d9488)"}}>
                 <Phone size={15} />
-                Requests
+                <span className="hidden sm:block">Requests</span>
                 {callRequests.length > 0 && (
                   <span className="absolute -top-2 -right-2 w-5 h-5 rounded-full text-xs flex items-center justify-center font-bold animate-bounce"
-                    style={{background:"linear-gradient(135deg,#ef4444,#dc2626)"}}>
+                    style={{background:"#ef4444"}}>
                     {callRequests.length}
                   </span>
                 )}
               </button>
             ) : isJoined && callStatus === "idle" ? (
               <button onClick={requestCall}
-                className="flex items-center gap-2 text-white font-bold px-5 py-2.5 rounded-2xl text-sm liquid-btn neon"
+                className="flex items-center gap-2 text-white font-bold px-4 py-2.5 rounded-2xl text-sm liquid-btn neon"
                 style={{background:"linear-gradient(135deg,#7c3aed,#4f46e5)"}}>
                 <Phone size={15} />
-                Call Into Stream
+                <span className="hidden sm:block">Call Into Stream</span>
+                <span className="sm:hidden">Call</span>
               </button>
             ) : isJoined && callStatus === "pending" ? (
-              <div className="flex items-center gap-2 text-yellow-400 font-bold px-5 py-2.5 rounded-2xl text-sm"
+              <div className="flex items-center gap-2 text-yellow-400 font-bold px-4 py-2.5 rounded-2xl text-sm"
                 style={{background:"rgba(234,179,8,0.1)",border:"1px solid rgba(234,179,8,0.3)"}}>
                 <Phone size={15} className="animate-pulse" />
-                Waiting for host...
+                <span className="hidden sm:block">Waiting...</span>
               </div>
             ) : isJoined && callStatus === "accepted" ? (
-              <div className="flex items-center gap-2 text-emerald-400 font-bold px-5 py-2.5 rounded-2xl text-sm"
+              <div className="flex items-center gap-2 text-emerald-400 font-bold px-4 py-2.5 rounded-2xl text-sm"
                 style={{background:"rgba(16,185,129,0.1)",border:"1px solid rgba(16,185,129,0.3)"}}>
                 <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                You are On Air!
+                On Air!
               </div>
             ) : null}
 
-            {isJoined && (
+            {isHost && isJoined && (
+              <button onClick={endStream}
+                className="flex items-center gap-2 text-white font-bold px-4 py-2.5 rounded-2xl text-sm liquid-btn"
+                style={{background:"rgba(239,68,68,0.4)",border:"1px solid rgba(239,68,68,0.5)"}}>
+                <VideoOff size={15} />
+                <span className="hidden sm:block">End Stream</span>
+              </button>
+            )}
+
+            {isJoined && !isHost && (
               <button onClick={leaveStream} className="ctrl-btn"
                 style={{background:"rgba(239,68,68,0.35)",border:"1px solid rgba(239,68,68,0.4)"}}>
                 <Phone size={18} className="text-red-300 rotate-[135deg]" />
@@ -544,21 +622,22 @@ export default function StreamPage() {
           </div>
         </div>
 
-        <div className="w-72 flex flex-col scrollbar-none flex-shrink-0"
+        {/* Chat */}
+        <div className="w-64 md:w-72 flex flex-col scrollbar-none flex-shrink-0"
           style={{background:"rgba(6,6,20,0.9)",backdropFilter:"blur(24px)",borderLeft:"1px solid rgba(124,58,237,0.15)"}}>
-          <div className="px-4 py-3.5 flex items-center justify-between flex-shrink-0"
+          <div className="px-3 md:px-4 py-3 flex items-center justify-between flex-shrink-0"
             style={{borderBottom:"1px solid rgba(124,58,237,0.15)"}}>
             <span className="text-white font-bold text-sm">Live Chat</span>
-            <div className="px-2.5 py-1 rounded-full text-xs font-semibold"
+            <div className="px-2 py-0.5 rounded-full text-xs font-semibold hidden sm:block"
               style={{background:"rgba(124,58,237,0.15)",border:"1px solid rgba(124,58,237,0.3)",color:"rgba(167,139,250,0.9)"}}>
               {userName}
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto scrollbar-none px-4 py-3 space-y-2 min-h-0">
+          <div className="flex-1 overflow-y-auto scrollbar-none px-3 md:px-4 py-3 space-y-2 min-h-0">
             {chatMessages.length === 0 && (
-              <div className="text-center pt-12">
-                <Smile size={22} className="text-violet-400/20 mx-auto mb-2" />
+              <div className="text-center pt-10">
+                <Smile size={20} className="text-violet-400/20 mx-auto mb-2" />
                 <p className="text-white/15 text-xs">Be the first to chat!</p>
               </div>
             )}
@@ -567,20 +646,20 @@ export default function StreamPage() {
                 <span className={`text-xs font-bold ${msg.user_name === "System" ? "text-amber-400" : getColor(msg.user_name)}`}>
                   {msg.user_name}
                 </span>
-                <span className="text-white/60 text-xs ml-1.5">{msg.content}</span>
+                <span className="text-white/60 text-xs ml-1">{msg.content}</span>
               </div>
             ))}
             <div ref={chatEndRef} />
           </div>
 
           <div className="px-3 py-3 flex-shrink-0" style={{borderTop:"1px solid rgba(124,58,237,0.15)"}}>
-            <div className="flex gap-2 rounded-2xl px-3 py-2.5"
+            <div className="flex gap-2 rounded-2xl px-3 py-2"
               style={{background:"rgba(124,58,237,0.08)",border:"1px solid rgba(124,58,237,0.2)"}}>
               <input value={message} onChange={(e) => setMessage(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && sendMessage()}
                 placeholder="Write a message..."
                 className="flex-1 bg-transparent text-white text-xs outline-none placeholder-violet-400/20" />
-              <button onClick={sendMessage} className="text-violet-400 hover:text-violet-300 transition-colors">
+              <button onClick={sendMessage} className="text-violet-400 hover:text-violet-300">
                 <Send size={13} />
               </button>
             </div>
@@ -588,6 +667,7 @@ export default function StreamPage() {
         </div>
       </div>
 
+      {/* Call requests modal */}
       {showCallRequests && (
         <div className="fixed inset-0 z-50 flex items-end justify-center p-4"
           style={{background:"rgba(0,0,0,0.85)",backdropFilter:"blur(16px)"}}
@@ -603,7 +683,7 @@ export default function StreamPage() {
               </div>
               <button onClick={() => setShowCallRequests(false)}
                 className="w-8 h-8 flex items-center justify-center rounded-xl text-white/40 hover:text-white"
-                style={{background:"rgba(124,58,237,0.1)",border:"1px solid rgba(124,58,237,0.2)"}}>✕</button>
+                style={{background:"rgba(124,58,237,0.1)"}}>✕</button>
             </div>
             {callRequests.length === 0 ? (
               <div className="text-center py-8">
@@ -617,17 +697,17 @@ export default function StreamPage() {
                     style={{background:"rgba(124,58,237,0.08)",border:"1px solid rgba(124,58,237,0.2)"}}>
                     <div className="w-10 h-10 rounded-2xl flex items-center justify-center font-bold text-white flex-shrink-0"
                       style={{background:"linear-gradient(135deg,#7c3aed,#4f46e5)"}}>
-                      {req.caller_name[0].toUpperCase()}
+                      {req.caller_name[0]?.toUpperCase()}
                     </div>
                     <span className="flex-1 text-white font-semibold text-sm">{req.caller_name}</span>
                     <button onClick={() => acceptCall(req)}
-                      className="text-white text-xs px-3 py-1.5 rounded-xl font-bold transition-all hover:scale-105"
+                      className="text-white text-xs px-3 py-1.5 rounded-xl font-bold"
                       style={{background:"linear-gradient(135deg,#059669,#0d9488)"}}>
                       Accept
                     </button>
                     <button onClick={() => rejectCall(req)}
-                      className="text-white/40 text-xs px-3 py-1.5 rounded-xl font-medium hover:text-white transition-colors"
-                      style={{background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.08)"}}>
+                      className="text-white/40 text-xs px-3 py-1.5 rounded-xl hover:text-white"
+                      style={{background:"rgba(255,255,255,0.05)"}}>
                       Decline
                     </button>
                   </div>
