@@ -618,7 +618,7 @@ export default function StreamPage() {
           </div>
         </div>
 
-        <div className="w-64 md:w-72 flex flex-col scrollbar-none flex-shrink-0"
+        <div className="w-0 md:w-72 flex flex-col scrollbar-none flex-shrink-0 hidden md:flex"
           style={{background:"rgba(6,6,20,0.9)",backdropFilter:"blur(24px)",borderLeft:"1px solid rgba(124,58,237,0.15)"}}>
           <div className="px-3 md:px-4 py-3 flex items-center justify-between flex-shrink-0"
             style={{borderBottom:"1px solid rgba(124,58,237,0.15)"}}>
