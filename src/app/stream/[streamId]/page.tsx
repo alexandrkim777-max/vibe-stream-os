@@ -2,17 +2,12 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useParams } from "next/navigation";
-import { createClient } from "@supabase/supabase-js";
+import { supabase } from "@/lib/supabase/client";
 import {
   Mic, MicOff, Video, VideoOff, Phone,
   Users, Send, Heart, Share2, ArrowLeft, Smile
 } from "lucide-react";
 import Link from "next/link";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 function Sparkles() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -102,7 +97,6 @@ export default function StreamPage() {
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   const appId = process.env.NEXT_PUBLIC_AGORA_APP_ID!;
-  // Clean channel name for Agora (remove hyphens, max 64 chars)
   const agoraChannel = streamId.replace(/-/g, "").substring(0, 64);
 
   useEffect(() => {
@@ -618,18 +612,18 @@ export default function StreamPage() {
           </div>
         </div>
 
-        <div className="w-0 md:w-72 flex flex-col scrollbar-none flex-shrink-0 hidden md:flex"
+        <div className="hidden md:flex w-72 flex-col scrollbar-none flex-shrink-0"
           style={{background:"rgba(6,6,20,0.9)",backdropFilter:"blur(24px)",borderLeft:"1px solid rgba(124,58,237,0.15)"}}>
-          <div className="px-3 md:px-4 py-3 flex items-center justify-between flex-shrink-0"
+          <div className="px-4 py-3 flex items-center justify-between flex-shrink-0"
             style={{borderBottom:"1px solid rgba(124,58,237,0.15)"}}>
             <span className="text-white font-bold text-sm">Live Chat</span>
-            <div className="px-2 py-0.5 rounded-full text-xs font-semibold hidden sm:block"
+            <div className="px-2 py-0.5 rounded-full text-xs font-semibold"
               style={{background:"rgba(124,58,237,0.15)",border:"1px solid rgba(124,58,237,0.3)",color:"rgba(167,139,250,0.9)"}}>
               {userName}
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto scrollbar-none px-3 md:px-4 py-3 space-y-2 min-h-0">
+          <div className="flex-1 overflow-y-auto scrollbar-none px-4 py-3 space-y-2 min-h-0">
             {chatMessages.length === 0 && (
               <div className="text-center pt-10">
                 <Smile size={20} className="text-violet-400/20 mx-auto mb-2" />
