@@ -6,10 +6,7 @@ import Link from "next/link";
 import { createClient } from "@supabase/supabase-js";
 import { Radio, Users, Zap, MessageSquare, Bell, Search, Mic, Video, X, Send, Phone, Gamepad2, Plane, Briefcase, BookOpen, Palette, Baby, ChevronRight, TrendingUp, LogOut } from "lucide-react";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { supabase } from "@/lib/supabase/client";
 
 const DISTRICTS = [
   { id: "all", label: "All Districts", icon: Zap, color: "#7c3aed", glow: "rgba(124,58,237,0.5)" },

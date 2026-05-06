@@ -6,10 +6,7 @@ import { createClient } from "@supabase/supabase-js";
 import { ArrowLeft, Camera, Save, Zap, Radio, Users, Star, Edit2 } from "lucide-react";
 import Link from "next/link";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { supabase } from "@/lib/supabase/client";
 
 const AVATARS = ["🎮", "✈️", "💼", "📚", "🎨", "⭐", "🔥", "💫", "🎵", "🏆", "🦁", "🐉"];
 
